@@ -1,0 +1,7 @@
+# Project Rules
+
+- Build dependency-free browser games with JavaScript ES modules, Canvas, DOM/CSS, and Web Audio.
+- Keep deterministic rules under `src/core/`; core code must not import DOM, Canvas, audio, storage, or publisher SDK APIs.
+- Keep generated state under `.swarmforge/`, role worktrees under `.worktrees/`, and downloaded shared scripts under `swarmforge/scripts/`; never commit them.
+- Never copy code, branding, art, audio, layouts, or level data from commercial reference games.
+- Never commit credentials or fabricate Arkadium access, publisher acceptance, analytics evidence, or production URLs.

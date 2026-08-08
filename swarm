@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAIN_BRANCH="${SWARMFORGE_SCRIPTS_BRANCH:-main}"
+ARCHIVE_URL="${SWARMFORGE_SCRIPTS_URL:-https://github.com/unclebob/swarm-forge/archive/refs/heads/${MAIN_BRANCH}.tar.gz}"
+TMP_DIR=""
+
+cleanup() {
+  [[ -z "$TMP_DIR" ]] || rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+if [[ ! -d "$ROOT/swarmforge/scripts" ]]; then
+  command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
+  command -v tar >/dev/null || { echo "tar is required" >&2; exit 1; }
+  TMP_DIR="$(mktemp -d)"
+  mkdir -p "$ROOT/swarmforge"
+  curl --fail --location --silent --show-error "$ARCHIVE_URL" \
+    | tar -xz --strip-components=1 -C "$TMP_DIR"
+  cp -R "$TMP_DIR/swarmforge/scripts" "$ROOT/swarmforge/scripts"
+  if [[ -d "$TMP_DIR/swarmforge/constitution/articles" ]]; then
+    mkdir -p "$ROOT/swarmforge/scripts/shared-articles"
+    cp -R "$TMP_DIR/swarmforge/constitution/articles/." \
+      "$ROOT/swarmforge/scripts/shared-articles/"
+  fi
+fi
+
+exec "$ROOT/swarmforge/scripts/swarmforge.sh" "$@"

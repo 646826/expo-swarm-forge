@@ -1,0 +1,7 @@
+{
+  "slug": "browser-game-starter",
+  "title": "Browser Game Starter",
+  "entry": "index.html",
+  "output": "dist",
+  "buildBudgetBytes": 750000
+}

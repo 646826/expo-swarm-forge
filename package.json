@@ -1,0 +1,16 @@
+{
+  "name": "expo-swarm-forge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dependency-free SwarmForge browser-game starter with a premium match-3 example.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "create": "node scripts/create-game.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs",
+    "package": "node scripts/package.mjs",
+    "serve": "node scripts/serve.mjs"
+  }
+}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#261343">
+  <meta name="arkadium-app-insights-key" content="">
+  <meta name="description" content="__GAME_TITLE__ - a dependency-free browser game starter.">
+  <title>__GAME_TITLE__</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header><strong>__GAME_TITLE__</strong><span data-role="status">title</span></header>
+    <section class="stage"><canvas tabindex="0" aria-label="__GAME_TITLE__ playfield"></canvas></section>
+    <nav aria-label="Game controls">
+      <button data-action="play" type="button">Play</button>
+      <button data-action="pause" type="button">Pause</button>
+      <button data-action="sound" type="button" aria-pressed="true">Sound</button>
+      <button data-action="motion" type="button" aria-pressed="false">Reduced motion</button>
+    </nav>
+    <p data-role="error" class="error" hidden></p>
+  </main>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
