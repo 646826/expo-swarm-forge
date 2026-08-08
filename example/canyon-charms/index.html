@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#170d16" />
+    <meta name="version" content="1.0.0" />
+    <meta name="arkadium-app-insights" content="" />
+    <meta
+      name="description"
+      content="Canyon Charms — an original deterministic match-3 reference game built with the SwarmForge browser-game starter."
+    />
+    <title>Canyon Charms</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="app" data-role="app" aria-label="Canyon Charms game">
+      <div class="ambient ambient-one" aria-hidden="true"></div>
+      <div class="ambient ambient-two" aria-hidden="true"></div>
+
+      <header class="game-header" aria-label="Game status">
+        <div class="brand-block">
+          <span class="brand-kicker">Sunset Jewel Co.</span>
+          <strong class="brand-title">Canyon Charms</strong>
+        </div>
+        <div class="status-strip">
+          <div class="status-card">
+            <span>Score</span>
+            <strong data-role="score">0</strong>
+          </div>
+          <div class="status-card">
+            <span>Target</span>
+            <strong data-role="target">5,000</strong>
+          </div>
+          <div class="status-card status-card-moves">
+            <span>Moves</span>
+            <strong data-role="moves">20</strong>
+          </div>
+          <div class="status-card status-card-combo">
+            <span>Combo</span>
+            <strong data-role="combo">—</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="play-shell" aria-label="Match-3 playfield">
+        <div class="canvas-frame">
+          <canvas
+            id="game-canvas"
+            role="img"
+            tabindex="0"
+            aria-label="An eight by eight board of glowing western charms. Use the arrow keys to move focus and Enter to select."
+            aria-describedby="canvas-description"
+          ></canvas>
+          <p id="canvas-description" class="visually-hidden">
+            Canyon Charms title screen. Start a game to reveal the board.
+          </p>
+          <div class="corner corner-tl" aria-hidden="true"></div>
+          <div class="corner corner-tr" aria-hidden="true"></div>
+          <div class="corner corner-bl" aria-hidden="true"></div>
+          <div class="corner corner-br" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <nav class="control-bar" aria-label="Game controls">
+        <button type="button" data-action="pause" aria-label="Pause game">Pause</button>
+        <button type="button" data-action="sound" aria-pressed="true">Sound on</button>
+        <button type="button" data-action="motion" aria-pressed="false">Motion on</button>
+        <button type="button" data-action="help">How to play</button>
+      </nav>
+
+      <section class="overlay title-overlay" data-screen="title" aria-labelledby="title-heading">
+        <div class="poster-card">
+          <span class="poster-eyebrow">A SwarmForge reference game</span>
+          <h1 id="title-heading">Canyon<br /><em>Charms</em></h1>
+          <p>
+            Restore the frontier jeweler's display. Match luminous charms, forge firecrackers and
+            dynamite, and reach the target before sunset.
+          </p>
+          <div class="poster-actions">
+            <button class="primary-button" type="button" data-action="start">Play now</button>
+            <button type="button" data-action="help">How to play</button>
+          </div>
+          <p class="control-hint">Tap, drag, swipe or use the keyboard.</p>
+        </div>
+      </section>
+
+      <section class="overlay compact-overlay" data-screen="paused" hidden aria-labelledby="pause-heading">
+        <div class="modal-card">
+          <span class="modal-kicker">Take a breath</span>
+          <h2 id="pause-heading">Game paused</h2>
+          <p>The canyon will wait. Your board and score are safe.</p>
+          <div class="modal-actions">
+            <button class="primary-button" type="button" data-action="resume">Resume</button>
+            <button type="button" data-action="restart">Restart</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="overlay compact-overlay" data-screen="result" hidden aria-labelledby="result-heading">
+        <div class="modal-card result-card">
+          <span class="modal-kicker" data-role="result-kicker">Trail complete</span>
+          <h2 id="result-heading" data-role="result-title">Display restored</h2>
+          <p data-role="result-copy">A new high score is waiting.</p>
+          <div class="result-score">
+            <span>Final score</span>
+            <strong data-role="final-score">0</strong>
+          </div>
+          <div class="modal-actions">
+            <button class="primary-button" type="button" data-action="restart">Play again</button>
+            <button type="button" data-action="title">Title</button>
+          </div>
+        </div>
+      </section>
+
+      <dialog id="help-dialog" aria-labelledby="help-heading">
+        <form method="dialog" class="help-card">
+          <div class="help-heading-row">
+            <div>
+              <span class="modal-kicker">Field guide</span>
+              <h2 id="help-heading">How to play</h2>
+            </div>
+            <button class="icon-button" value="close" aria-label="Close help">×</button>
+          </div>
+          <ol class="help-steps">
+            <li><strong>Swap neighbors.</strong> Match three or more identical charms in a row.</li>
+            <li><strong>Forge power.</strong> Four creates a row or column firecracker. Five, T or L creates dynamite.</li>
+            <li><strong>Chain cascades.</strong> Falling charms can match again and multiply your reward.</li>
+            <li><strong>Beat sunset.</strong> Reach 5,000 points before all 20 moves are spent.</li>
+          </ol>
+          <div class="keyboard-guide" aria-label="Keyboard controls">
+            <span>Arrows: move</span><span>Enter: select</span><span>Esc: pause</span><span>M: sound</span>
+          </div>
+          <button class="primary-button wide-button" value="close">Back to the game</button>
+        </form>
+      </dialog>
+
+      <div class="visually-hidden" aria-live="polite" aria-atomic="true" data-role="announcer"></div>
+      <div class="boot-error" data-role="boot-error" hidden>
+        <strong>Canyon Charms could not start.</strong>
+        <pre data-role="boot-error-message"></pre>
+      </div>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
