@@ -1,0 +1,31 @@
+name: Materialize browser game starter
+
+on:
+  push:
+    branches: [feature/browser-game-starter]
+    paths:
+      - '.bootstrap/starter.tar.gz'
+      - '.github/workflows/materialize-starter.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Materialize verified starter tree
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tar -xzf .bootstrap/starter.tar.gz
+          rm -rf .bootstrap .github/workflows/materialize-starter.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: add SwarmForge browser game starter'
+          git push origin HEAD:feature/browser-game-starter
