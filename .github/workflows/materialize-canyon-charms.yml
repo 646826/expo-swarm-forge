@@ -1,0 +1,36 @@
+name: Materialize Canyon Charms example
+
+on:
+  push:
+    branches: [feature/canyon-charms-example]
+    paths:
+      - '.bootstrap/canyon-charms-example.tar.gz'
+      - '.github/workflows/materialize-canyon-charms.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.bootstrap/canyon-charms-example.tar.gz'
+      - '.github/workflows/materialize-canyon-charms.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Materialize verified Canyon Charms tree
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tar -xzf .bootstrap/canyon-charms-example.tar.gz
+          rm -rf .bootstrap .github/workflows/materialize-canyon-charms.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: add Canyon Charms reference game'
+          git push origin HEAD:feature/canyon-charms-example
