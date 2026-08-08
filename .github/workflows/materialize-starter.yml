@@ -6,6 +6,11 @@ on:
     paths:
       - '.bootstrap/starter.tar.gz'
       - '.github/workflows/materialize-starter.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.bootstrap/starter.tar.gz'
+      - '.github/workflows/materialize-starter.yml'
 
 permissions:
   contents: write
