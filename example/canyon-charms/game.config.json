@@ -1,0 +1,7 @@
+{
+  "slug": "canyon-charms",
+  "title": "Canyon Charms",
+  "entry": "index.html",
+  "output": "dist",
+  "buildBudgetBytes": 750000
+}
