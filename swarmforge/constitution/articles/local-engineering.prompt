@@ -1,0 +1,8 @@
+# Local Engineering Rules
+
+- Behavioral changes are test-first: run the focused test and observe the expected failure before implementation.
+- Run `npm test` and `npm run check` before every git handoff.
+- Game state is serializable and renderer-independent.
+- Input is normalized into named actions at one boundary.
+- Platform calls are optional, bounded, best effort, and must never block standalone play.
+- Prefer small focused modules, deterministic tests, explicit errors, and no runtime dependencies.

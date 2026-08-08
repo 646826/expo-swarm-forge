@@ -1,0 +1,9 @@
+# Local Workflow Rules
+
+Normal flow: director -> gameplay -> presentation -> qa -> director.
+
+- Handoffs point to committed states and describe only the observable slice to review.
+- Gameplay does not change visual direction unless the accepted rules require it.
+- Presentation does not silently change scoring, board rules, progression, or RNG behavior.
+- QA verifies through the public browser surface and records screenshots for visual claims.
+- The director alone merges verified work and decides release readiness.
