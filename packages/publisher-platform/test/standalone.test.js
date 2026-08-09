@@ -23,45 +23,77 @@ test('standalone initializes without loading a publisher SDK', async () => {
   });
 });
 
-test('lifecycle requires initialization and becomes available afterward', async () => {
+test('lifecycle follows the factory contract exactly', async () => {
   const { platform } = createStandalonePlatformHarness();
   assert.deepEqual(await platform.signalReady(), {
     ok: false,
     error: {
-      code: 'NOT_INITIALIZED',
-      message: 'Publisher platform is not initialized.',
+      code: 'INVALID_LIFECYCLE',
+      message: 'Lifecycle state new is not valid for this operation.',
+      recoverable: false,
     },
   });
-  await platform.initialize();
+  assert.deepEqual(await platform.initialize(), {
+    ok: true,
+    value: {
+      userState: 'anonymous',
+      locale: 'en-US',
+      capabilities: platform.capabilities,
+    },
+  });
   assert.deepEqual(await platform.signalReady(), { ok: true, value: undefined });
   assert.deepEqual(await platform.signalGameStart(), { ok: true, value: undefined });
   assert.deepEqual(await platform.signalLevelStart('1'), { ok: true, value: undefined });
   assert.deepEqual(await platform.signalScore(240), { ok: true, value: undefined });
   assert.deepEqual(await platform.signalLevelEnd('1'), { ok: true, value: undefined });
   assert.deepEqual(await platform.signalGameEnd('completed'), { ok: true, value: undefined });
-});
-
-test('unsupported capabilities fail explicitly', async () => {
-  const { platform } = createStandalonePlatformHarness();
-  await platform.initialize();
-  const expected = {
+  assert.deepEqual(await platform.signalGameEnd('completed'), {
     ok: false,
     error: {
-      code: 'UNSUPPORTED_CAPABILITY',
-      message: 'Publisher capability is not available.',
+      code: 'INVALID_LIFECYCLE',
+      message: 'Lifecycle state ended is not valid for this operation.',
+      recoverable: false,
     },
-  };
-  assert.deepEqual(await platform.loadSave(), expected);
-  assert.deepEqual(await platform.writeSave({ score: 1 }), expected);
-  assert.deepEqual(await platform.track({ name: 'game_start' }), expected);
-  assert.deepEqual(await platform.showInterstitial('level-end'), expected);
-  assert.deepEqual(await platform.showRewarded('extra-moves'), expected);
-  assert.deepEqual(await platform.getWalletBalance(), expected);
-  assert.deepEqual(await platform.consumeCurrency(1, 'tx-1'), expected);
-  assert.deepEqual(await platform.submitLeaderboard({ board: 'score', score: 1 }), expected);
+  });
 });
 
-test('host pause and resume subscriptions unsubscribe cleanly', async () => {
+test('unsupported capabilities fail explicitly after initialization', async () => {
+  const { platform } = createStandalonePlatformHarness();
+  await platform.initialize();
+  for (const [operation, capability] of [
+    [() => platform.loadSave(), 'persistence'],
+    [() => platform.writeSave({ score: 1 }), 'persistence'],
+    [() => platform.track({ name: 'game_start' }), 'analytics'],
+    [() => platform.showInterstitial('level-end'), 'interstitialAds'],
+    [() => platform.showRewarded('extra-moves'), 'rewardedAds'],
+    [() => platform.getWalletBalance(), 'wallet'],
+    [() => platform.consumeCurrency(1, 'tx-1'), 'wallet'],
+    [() => platform.submitLeaderboard({ board: 'score', score: 1 }), 'leaderboards'],
+  ]) {
+    assert.deepEqual(await operation(), {
+      ok: false,
+      error: {
+        code: 'UNSUPPORTED_CAPABILITY',
+        message: `Capability ${capability} is unavailable.`,
+        recoverable: true,
+      },
+    });
+  }
+});
+
+test('capabilities before initialization report NOT_INITIALIZED', async () => {
+  const { platform } = createStandalonePlatformHarness();
+  assert.deepEqual(await platform.loadSave(), {
+    ok: false,
+    error: {
+      code: 'NOT_INITIALIZED',
+      message: 'Platform has not been initialized.',
+      recoverable: true,
+    },
+  });
+});
+
+test('host pause and resume subscriptions unsubscribe cleanly', () => {
   const { platform, pause, resume } = createStandalonePlatformHarness();
   let pauses = 0;
   let resumes = 0;
@@ -89,24 +121,43 @@ test('destroy is idempotent and blocks later operations', async () => {
   assert.deepEqual(await platform.signalReady(), {
     ok: false,
     error: {
-      code: 'PLATFORM_DESTROYED',
-      message: 'Publisher platform has been destroyed.',
+      code: 'DESTROYED',
+      message: 'Platform has been destroyed.',
+      recoverable: false,
     },
   });
 });
 
-test('invalid score and level values fail before lifecycle success', async () => {
+test('invalid gameplay values fail without advancing lifecycle', async () => {
   const { platform } = createStandalonePlatformHarness();
   await platform.initialize();
-  const invalid = {
+  await platform.signalReady();
+  await platform.signalGameStart();
+  const invalidScore = {
     ok: false,
     error: {
       code: 'INVALID_ARGUMENT',
-      message: 'Publisher operation received an invalid argument.',
+      message: 'Score must be a non-negative safe integer.',
+      recoverable: false,
     },
   };
-  assert.deepEqual(await platform.signalScore(-1), invalid);
-  assert.deepEqual(await platform.signalScore(Number.NaN), invalid);
-  assert.deepEqual(await platform.signalLevelStart(''), invalid);
-  assert.deepEqual(await platform.signalGameEnd('  '), invalid);
+  assert.deepEqual(await platform.signalScore(-1), invalidScore);
+  assert.deepEqual(await platform.signalScore(Number.NaN), invalidScore);
+  assert.deepEqual(await platform.signalLevelStart(''), {
+    ok: false,
+    error: {
+      code: 'INVALID_ARGUMENT',
+      message: 'Level ID must be a non-empty string.',
+      recoverable: false,
+    },
+  });
+  assert.deepEqual(await platform.signalGameEnd('  '), {
+    ok: false,
+    error: {
+      code: 'INVALID_ARGUMENT',
+      message: 'Game-end reason must be a non-empty string.',
+      recoverable: false,
+    },
+  });
+  assert.deepEqual(await platform.signalGameEnd('completed'), { ok: true, value: undefined });
 });
