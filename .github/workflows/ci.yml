@@ -10,18 +10,93 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - name: Check out exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
-      - run: npm test
-      - run: npm run check -- --project template/browser-game
-      - run: npm run package -- --project template/browser-game
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+
+      - name: Run complete repository verification
+        run: npm run verify
+
+      - name: Boot current Canyon Charms build in Chrome
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node scripts/serve.mjs example/canyon-charms/dist 4173 \
+            > "$RUNNER_TEMP/canyon-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then
+              break
+            fi
+            [[ "$attempt" -lt 30 ]] || {
+              cat "$RUNNER_TEMP/canyon-server.log" >&2
+              exit 1
+            }
+            sleep 1
+          done
+
+          browser="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -x "$browser"
+          url='http://127.0.0.1:4173/?seed=12345'
+
+          "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --hide-scrollbars \
+            --window-size=1280,720 \
+            --virtual-time-budget=5000 \
+            --dump-dom \
+            "$url" \
+            > "$RUNNER_TEMP/canyon-current-dom.html" \
+            2> "$RUNNER_TEMP/canyon-current-chrome.log"
+
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const assert = require('node:assert/strict');
+          const html = readFileSync(process.env.RUNNER_TEMP + '/canyon-current-dom.html', 'utf8');
+          assert.match(html, /<title>Canyon Charms<\/title>/);
+          assert.match(html, /Canyon Charms board\. Score 0 of 5,000\./);
+          assert.match(html, /data-reduced-motion="false"/);
+          assert.match(html, /Three in a row/);
+          const bootTag = html.match(/<[^>]+data-role="boot-error"[^>]*>/)?.[0] ?? '';
+          assert.match(bootTag, /\shidden(?:="")?(?:\s|>)/);
+          NODE
+
+          "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --hide-scrollbars \
+            --window-size=1280,720 \
+            --virtual-time-budget=5000 \
+            --screenshot="$RUNNER_TEMP/canyon-current.png" \
+            "$url" \
+            >> "$RUNNER_TEMP/canyon-current-chrome.log" 2>&1
+
+          test -s "$RUNNER_TEMP/canyon-current.png"
+
+      - name: Upload verified release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: browser-game-starter-${{ github.sha }}
-          path: release/browser-game-starter.zip
+          name: canyon-charms-candidate-${{ github.sha }}
+          path: |
+            release/browser-game-starter.zip
+            release/canyon-charms.zip
+            example/canyon-charms/dist/build-report.json
+            example/canyon-charms/dist/student-handbook-ru.pdf
+            ${{ runner.temp }}/canyon-current.png
+            ${{ runner.temp }}/canyon-current-dom.html
+            ${{ runner.temp }}/canyon-current-chrome.log
           if-no-files-found: error
           retention-days: 7
