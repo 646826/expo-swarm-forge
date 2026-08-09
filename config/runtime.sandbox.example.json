@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "mode": "arkadium-sandbox",
+  "arkadiumEnvironment": "DEV",
+  "gameId": null,
+  "analyticsProvider": "console",
+  "appInsightsId": null,
+  "gameEyeEndpoint": "http://127.0.0.1:3001/v1/game-events",
+  "gameEyeProject": "canyon-charms",
+  "gameVersion": "1.0.0",
+  "buildSha": "709a1556fda3fa7a1506d46ec704cc654308775b"
+}
