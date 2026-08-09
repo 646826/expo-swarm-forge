@@ -1,7 +1,9 @@
+export { LifecycleGuard } from './lifecycle.js';
 export {
   NO_CAPABILITIES,
-  PLATFORM_FAILURES,
-  failure,
+  PLATFORM_ERROR_CODES,
+  err,
   ok,
+  sdkFailure,
 } from './result.js';
 export { createStandalonePublisherPlatform } from './standalone.js';
