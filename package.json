@@ -11,6 +11,7 @@
     "check": "node scripts/check.mjs",
     "build": "node scripts/build.mjs",
     "package": "node scripts/package.mjs",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "verify": "node scripts/verify.mjs"
   }
 }

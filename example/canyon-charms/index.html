@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#170d16" />
-    <meta name="version" content="1.0.0" />
+    <meta name="version" content="1.1.0" />
     <meta name="arkadium-app-insights" content="" />
     <meta
       name="description"
@@ -12,6 +12,7 @@
     />
     <title>Canyon Charms</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./clarity.css" />
   </head>
   <body>
     <main id="app" data-role="app" aria-label="Canyon Charms game">
@@ -55,6 +56,12 @@
           <p id="canvas-description" class="visually-hidden">
             Canyon Charms title screen. Start a game to reveal the board.
           </p>
+          <div class="play-tip" aria-label="Quick match guide">
+            <span><strong>3</strong> clear</span>
+            <span><strong>4</strong> firecracker</span>
+            <span><strong>5 · T · L</strong> dynamite</span>
+            <small>Automatic hint after 8 quiet seconds</small>
+          </div>
           <div class="corner corner-tl" aria-hidden="true"></div>
           <div class="corner corner-tr" aria-hidden="true"></div>
           <div class="corner corner-bl" aria-hidden="true"></div>
@@ -66,22 +73,47 @@
         <button type="button" data-action="pause" aria-label="Pause game">Pause</button>
         <button type="button" data-action="sound" aria-pressed="true">Sound on</button>
         <button type="button" data-action="motion" aria-pressed="false">Motion on</button>
-        <button type="button" data-action="help">How to play</button>
+        <button type="button" data-action="help">Rules & controls</button>
       </nav>
 
       <section class="overlay title-overlay" data-screen="title" aria-labelledby="title-heading">
-        <div class="poster-card">
+        <div class="poster-card poster-card-clear">
           <span class="poster-eyebrow">A SwarmForge reference game</span>
           <h1 id="title-heading">Canyon<br /><em>Charms</em></h1>
           <p>
-            Restore the frontier jeweler's display. Match luminous charms, forge firecrackers and
-            dynamite, and reach the target before sunset.
+            Swap neighboring charms, build cascades, and restore the frontier jeweler's display
+            before the last move is spent.
           </p>
-          <div class="poster-actions">
-            <button class="primary-button" type="button" data-action="start">Play now</button>
-            <button type="button" data-action="help">How to play</button>
+
+          <div class="goal-ribbon" aria-label="Level goal">
+            <span><strong>5,000</strong> points</span>
+            <span aria-hidden="true">•</span>
+            <span><strong>20</strong> moves</span>
           </div>
-          <p class="control-hint">Tap, drag, swipe or use the keyboard.</p>
+
+          <div class="match-guide" aria-label="Power-up guide">
+            <article>
+              <span class="match-pattern" aria-hidden="true">● ● ●</span>
+              <strong>Three in a row</strong>
+              <small>Clear matching charms</small>
+            </article>
+            <article>
+              <span class="match-pattern" aria-hidden="true">● ● ● ●</span>
+              <strong>Four in a row</strong>
+              <small>Forge a firecracker</small>
+            </article>
+            <article>
+              <span class="match-pattern match-pattern-special" aria-hidden="true">✦ T L</span>
+              <strong>Five, T, or L</strong>
+              <small>Forge dynamite</small>
+            </article>
+          </div>
+
+          <div class="poster-actions">
+            <button class="primary-button" type="button" data-action="start">Start the trail</button>
+            <button type="button" data-action="help">Rules & controls</button>
+          </div>
+          <p class="control-hint">Tap two neighbors, drag, swipe, or use the keyboard.</p>
         </div>
       </section>
 
@@ -114,22 +146,38 @@
       </section>
 
       <dialog id="help-dialog" aria-labelledby="help-heading">
-        <form method="dialog" class="help-card">
+        <form method="dialog" class="help-card help-card-clear">
           <div class="help-heading-row">
             <div>
               <span class="modal-kicker">Field guide</span>
-              <h2 id="help-heading">How to play</h2>
+              <h2 id="help-heading">Rules & controls</h2>
             </div>
             <button class="icon-button" value="close" aria-label="Close help">×</button>
           </div>
+
+          <div class="help-goal">
+            <strong>Goal: 5,000 points</strong>
+            <span>Finish before all 20 moves are gone.</span>
+          </div>
+
+          <div class="power-guide" aria-label="Match recipes">
+            <article><b>3</b><span>Clear charms</span></article>
+            <article><b>4</b><span>Row or column firecracker</span></article>
+            <article><b>5 · T · L</b><span>3 × 3 dynamite blast</span></article>
+          </div>
+
           <ol class="help-steps">
-            <li><strong>Swap neighbors.</strong> Match three or more identical charms in a row.</li>
-            <li><strong>Forge power.</strong> Four creates a row or column firecracker. Five, T or L creates dynamite.</li>
-            <li><strong>Chain cascades.</strong> Falling charms can match again and multiply your reward.</li>
-            <li><strong>Beat sunset.</strong> Reach 5,000 points before all 20 moves are spent.</li>
+            <li><strong>Choose a charm.</strong> Then choose an orthogonally adjacent neighbor.</li>
+            <li><strong>Make a match.</strong> Invalid swaps return automatically and do not spend a move.</li>
+            <li><strong>Build cascades.</strong> Falling charms can match again and multiply the score.</li>
+            <li><strong>Need help?</strong> Stop interacting for eight seconds and a legal move will glow.</li>
           </ol>
           <div class="keyboard-guide" aria-label="Keyboard controls">
-            <span>Arrows: move</span><span>Enter: select</span><span>Esc: pause</span><span>M: sound</span>
+            <span>Arrows: move</span>
+            <span>Enter / Space: select</span>
+            <span>Esc: pause</span>
+            <span>M: sound</span>
+            <span>H / ?: guide</span>
           </div>
           <button class="primary-button wide-button" value="close">Back to the game</button>
         </form>
