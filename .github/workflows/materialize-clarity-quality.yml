@@ -49,15 +49,17 @@ jobs:
       - name: Confirm focused clarity contract
         run: node --test test/clarity-contract.test.js
 
-      - name: Commit verified source changes
+      - name: Commit verified non-workflow source changes
         shell: bash
         run: |
           set -Eeuo pipefail
-          rm -rf .bootstrap
-          rm -f .github/workflows/materialize-clarity-quality.yml
+          # The GitHub Actions token can verify workflow edits but cannot push them.
+          # Restore ci.yml for this bot commit; the authenticated connector updates it next.
+          git restore --source=HEAD -- .github/workflows/ci.yml
+          rm -f .bootstrap/canyon-charms-clarity-quality.patch.gz.b64
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git diff --cached --check
-          git commit -m 'feat: clarify Canyon Charms and strengthen verification'
+          git commit -m 'feat: clarify Canyon Charms onboarding and repository entrypoint'
           git push origin HEAD:improve/canyon-clarity-quality
