@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "mode": "standalone",
+  "arkadiumEnvironment": null,
+  "gameId": null,
+  "analyticsProvider": "none",
+  "appInsightsId": null,
+  "gameEyeEndpoint": null,
+  "gameEyeProject": "canyon-charms",
+  "gameVersion": "1.0.0",
+  "buildSha": "709a1556fda3fa7a1506d46ec704cc654308775b"
+}
