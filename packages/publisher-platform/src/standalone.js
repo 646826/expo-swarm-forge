@@ -1,8 +1,5 @@
-import {
-  NO_CAPABILITIES,
-  PLATFORM_FAILURES,
-  ok,
-} from './result.js';
+import { LifecycleGuard } from './lifecycle.js';
+import { NO_CAPABILITIES, err, ok } from './result.js';
 
 const DEFAULT_LOCALE = 'en-US';
 const LOCALE_PATTERN = /^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/;
@@ -31,9 +28,9 @@ function subscribeEventSource(eventSource, name, emit) {
 }
 
 export function createStandalonePublisherPlatform(options = {}) {
+  const guard = new LifecycleGuard();
   const pauseHandlers = new Set();
   const resumeHandlers = new Set();
-  let state = 'new';
   const context = Object.freeze({
     userState: 'anonymous',
     locale: normalizeLocale(options.locale),
@@ -41,12 +38,12 @@ export function createStandalonePublisherPlatform(options = {}) {
   });
 
   const emit = (handlers) => {
-    if (state === 'destroyed') return;
+    if (guard.state === 'destroyed') return;
     for (const handler of [...handlers]) {
       try {
         handler();
       } catch {
-        // A host callback must not prevent the remaining subscribers from running.
+        // A host callback must not prevent remaining subscribers from running.
       }
     }
   };
@@ -56,24 +53,9 @@ export function createStandalonePublisherPlatform(options = {}) {
     subscribeEventSource(options.eventSource, 'onResume', () => emit(resumeHandlers)),
   ];
 
-  const guard = () => {
-    if (state === 'destroyed') return PLATFORM_FAILURES.destroyed;
-    if (state !== 'initialized') return PLATFORM_FAILURES.notInitialized;
-    return null;
-  };
-
-  const lifecycle = (validator = null) => async (value) => {
-    const blocked = guard();
-    if (blocked) return blocked;
-    if (validator && !validator(value)) return PLATFORM_FAILURES.invalidArgument;
-    return ok(undefined);
-  };
-
-  const unsupported = async () => guard() ?? PLATFORM_FAILURES.unsupported;
-
   const subscribe = (handlers, handler) => {
     if (typeof handler !== 'function') throw new TypeError('Publisher callback must be a function.');
-    if (state === 'destroyed') return () => {};
+    if (guard.state === 'destroyed') return () => {};
     handlers.add(handler);
     let active = true;
     return () => {
@@ -83,21 +65,68 @@ export function createStandalonePublisherPlatform(options = {}) {
     };
   };
 
+  const requireCapability = (capability) => {
+    if (guard.state === 'destroyed') {
+      return err('DESTROYED', 'Platform has been destroyed.', false);
+    }
+    if (guard.state === 'new') {
+      return err('NOT_INITIALIZED', 'Platform has not been initialized.', true);
+    }
+    return err('UNSUPPORTED_CAPABILITY', `Capability ${capability} is unavailable.`, true);
+  };
+
   return Object.freeze({
     capabilities: NO_CAPABILITIES,
 
     async initialize() {
-      if (state === 'destroyed') return PLATFORM_FAILURES.destroyed;
-      state = 'initialized';
+      const transition = guard.markInitialized();
+      if (!transition.ok) return transition;
       return ok(context);
     },
 
-    signalReady: lifecycle(),
-    signalGameStart: lifecycle(),
-    signalScore: lifecycle((score) => Number.isSafeInteger(score) && score >= 0),
-    signalLevelStart: lifecycle((levelId) => nonEmptyString(levelId)),
-    signalLevelEnd: lifecycle((levelId) => nonEmptyString(levelId)),
-    signalGameEnd: lifecycle((reason) => nonEmptyString(reason)),
+    async signalReady() {
+      return guard.markReady();
+    },
+
+    async signalGameStart() {
+      return guard.markGameStarted();
+    },
+
+    async signalScore(score) {
+      const active = guard.assertGameplayActive();
+      if (!active.ok) return active;
+      if (!Number.isSafeInteger(score) || score < 0) {
+        return err('INVALID_ARGUMENT', 'Score must be a non-negative safe integer.', false);
+      }
+      return ok(undefined);
+    },
+
+    async signalLevelStart(levelId) {
+      const active = guard.assertGameplayActive();
+      if (!active.ok) return active;
+      if (!nonEmptyString(levelId)) {
+        return err('INVALID_ARGUMENT', 'Level ID must be a non-empty string.', false);
+      }
+      return ok(undefined);
+    },
+
+    async signalLevelEnd(levelId) {
+      const active = guard.assertGameplayActive();
+      if (!active.ok) return active;
+      if (!nonEmptyString(levelId)) {
+        return err('INVALID_ARGUMENT', 'Level ID must be a non-empty string.', false);
+      }
+      return ok(undefined);
+    },
+
+    async signalGameEnd(reason) {
+      const active = guard.assertGameplayActive();
+      if (!active.ok) return active;
+      if (!nonEmptyString(reason)) {
+        return err('INVALID_ARGUMENT', 'Game-end reason must be a non-empty string.', false);
+      }
+      return guard.markGameEnded();
+    },
 
     onPause(handler) {
       return subscribe(pauseHandlers, handler);
@@ -107,25 +136,25 @@ export function createStandalonePublisherPlatform(options = {}) {
       return subscribe(resumeHandlers, handler);
     },
 
-    loadSave: unsupported,
-    writeSave: unsupported,
-    track: unsupported,
-    showInterstitial: unsupported,
-    showRewarded: unsupported,
-    getWalletBalance: unsupported,
-    consumeCurrency: unsupported,
-    submitLeaderboard: unsupported,
+    async loadSave() { return requireCapability('persistence'); },
+    async writeSave() { return requireCapability('persistence'); },
+    async track() { return requireCapability('analytics'); },
+    async showInterstitial() { return requireCapability('interstitialAds'); },
+    async showRewarded() { return requireCapability('rewardedAds'); },
+    async getWalletBalance() { return requireCapability('wallet'); },
+    async consumeCurrency() { return requireCapability('wallet'); },
+    async submitLeaderboard() { return requireCapability('leaderboards'); },
 
     async destroy() {
-      if (state === 'destroyed') return;
-      state = 'destroyed';
+      if (guard.state === 'destroyed') return;
+      guard.markDestroyed();
       pauseHandlers.clear();
       resumeHandlers.clear();
       for (const unsubscribe of sourceUnsubscribers) {
         try {
           unsubscribe();
         } catch {
-          // Teardown remains idempotent even when an injected source misbehaves.
+          // Teardown remains idempotent when an injected source misbehaves.
         }
       }
     },
