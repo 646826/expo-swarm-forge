@@ -23,7 +23,7 @@ standalone local development
   -> approved Arkadium PROD configuration
 ```
 
-The same candidate must also emit a reviewed, privacy-safe game telemetry stream through a real local or deployed stack:
+The same candidate must emit a reviewed, privacy-safe game telemetry stream through a real local or deployed stack:
 
 ```text
 browser -> Ark Eye game endpoint -> NATS JetStream -> writer -> ClickHouse
@@ -97,16 +97,19 @@ Remains the source of truth for:
 - the official Arkadium adapter;
 - service policies for persistence, advertising, analytics, wallet, leaderboard, and RPC diagnostics.
 
-For a self-contained educational repository, `expo-swarm-forge` will carry a deterministic vendor snapshot of the required packages. The snapshot manifest records:
+For a self-contained educational repository, `expo-swarm-forge` will carry a deterministic vendor snapshot of the required packages. Its manifest has this exact shape:
 
-```json
-{
-  "sourceRepository": "646826/arkadium-game-factory",
-  "sourceCommit": "<40-character commit recorded by the sync command>",
-  "sdkVersion": "2.66.2",
-  "files": { "relative/path": "sha256" }
+```ts
+interface ArkadiumSnapshotManifest {
+  readonly schemaVersion: 1;
+  readonly sourceRepository: '646826/arkadium-game-factory';
+  readonly sourceCommit: string;
+  readonly sdkVersion: '2.66.2';
+  readonly files: Readonly<Record<string, string>>;
 }
 ```
+
+`sourceCommit` must match `^[0-9a-f]{40}$`. Every value in `files` must be a lowercase SHA-256 digest. The sync command writes the actual source commit and hashes; developers do not hand-edit them.
 
 The implementation provides two commands:
 
@@ -152,7 +155,7 @@ signalLevelStart("1")       once per started level
 signalScore(totalScore)     monotonically non-decreasing
 signalLevelEnd("1")         once when the level ends
 signalGameEnd(reason)       at most once
- destroy                    idempotent
+destroy                     idempotent
 ```
 
 Host pause and resume callbacks update controller state, stop gameplay input, and suspend or resume audio. Browser visibility loss uses the same pause path but cannot duplicate outgoing lifecycle state.
@@ -176,26 +179,29 @@ Mode selection is explicit. Runtime object discovery is retained only inside the
 
 A build step validates environment input and writes a public runtime manifest. It contains no user credentials or private tokens.
 
-```json
-{
-  "mode": "arkadium-sandbox",
-  "arkadiumEnvironment": "DEV",
-  "gameId": "publisher-or-sandbox-assigned-value",
-  "analyticsProvider": "console",
-  "appInsightsId": null,
-  "gameEyeEndpoint": "http://127.0.0.1:3001/v1/game-events",
-  "gameEyeProject": "canyon-charms",
-  "gameVersion": "1.1.0",
-  "buildSha": "40-character-git-sha"
+```ts
+interface PublicRuntimeManifest {
+  readonly schemaVersion: 1;
+  readonly mode: 'standalone' | 'arkadium-sandbox' | 'arkadium-dev' | 'arkadium-prod';
+  readonly arkadiumEnvironment: 'DEV' | 'STAGING' | 'PROD' | null;
+  readonly gameId: string | null;
+  readonly analyticsProvider: 'none' | 'console' | 'app-insights';
+  readonly appInsightsId: string | null;
+  readonly gameEyeEndpoint: string | null;
+  readonly gameEyeProject: 'canyon-charms';
+  readonly gameVersion: string;
+  readonly buildSha: string;
 }
 ```
 
 Validation rules:
 
 - `standalone` rejects Arkadium-only fields.
-- `arkadium-sandbox` requires `DEV` and forbids production analytics configuration.
+- `arkadium-sandbox` requires `DEV`, uses `console`, and forbids production analytics configuration.
 - `arkadium-dev` requires an assigned non-placeholder game ID.
 - `arkadium-prod` requires `PROD`, an assigned game ID, approved analytics configuration, an HTTPS telemetry endpoint, and an immutable build SHA.
+- `buildSha` must match `^[0-9a-f]{40}$`.
+- `gameVersion` must be a canonical semantic version.
 - Placeholder-like values such as `demo`, `test`, `changeme`, all-zero identifiers, and empty strings fail DEV and PROD builds.
 - DEV user credentials exist only as protected CI environment secrets and are never written into the runtime manifest.
 
@@ -293,22 +299,22 @@ Unknown events, unknown properties, sensitive dimensions, non-finite numbers, an
 
 Batches canonical events and sends them with `fetch(..., { keepalive: true })` or `navigator.sendBeacon` during unload. Queue size and retry count are bounded. Failure never blocks gameplay, but the integration diagnostics panel and CI evidence report delivery state.
 
-The browser envelope is:
+A valid example tied to the current clarified Canyon Charms release is:
 
 ```json
 {
   "schema": "ark.game-events.v1",
   "project": "canyon-charms",
-  "gameVersion": "1.1.0",
-  "buildSha": "40-character-git-sha",
+  "gameVersion": "1.0.0",
+  "buildSha": "709a1556fda3fa7a1506d46ec704cc654308775b",
   "platformMode": "arkadium-sandbox",
   "sdkVersion": "2.66.2",
-  "sessionId": "uuid-v4",
+  "sessionId": "01234567-89ab-4cde-8f01-23456789abcd",
   "locale": "en-US",
   "userState": "anonymous",
   "events": [
     {
-      "eventId": "uuid-v4",
+      "eventId": "11111111-2222-4333-8444-555555555555",
       "sequence": 1,
       "occurredAt": "2026-08-09T20:00:00.000Z",
       "name": "game_start",
@@ -339,7 +345,7 @@ The endpoint:
 - applies an explicit CORS origin allowlist;
 - applies per-origin and per-IP rate limits while never storing the IP;
 - stamps `receivedAt`, origin, user-agent-derived device category, browser, and country when available;
-- publishes to JetStream and returns success only after an acknowledgement;
+- publishes each event to JetStream and returns success only after every acknowledgement;
 - returns stable redacted errors.
 
 ### 9.2 Durable transport
@@ -374,16 +380,16 @@ CREATE TABLE game_event_v1
     game_version LowCardinality(String),
     build_sha FixedString(40),
     platform_mode LowCardinality(String),
-    sdk_version LowCardinality(Nullable(String)),
+    sdk_version Nullable(LowCardinality(String)),
     locale LowCardinality(String),
     user_state LowCardinality(String),
     event_name LowCardinality(String),
     event_version UInt16,
     origin LowCardinality(String),
-    country LowCardinality(Nullable(String)),
-    device_category LowCardinality(Nullable(String)),
-    browser_name LowCardinality(Nullable(String)),
-    browser_version LowCardinality(Nullable(String)),
+    country Nullable(LowCardinality(String)),
+    device_category Nullable(LowCardinality(String)),
+    browser_name Nullable(LowCardinality(String)),
+    browser_version Nullable(LowCardinality(String)),
     properties_json String
 )
 ENGINE = ReplacingMergeTree(received_at)
@@ -483,7 +489,7 @@ The implementation adds these commands:
 ```text
 npm run verify
 npm run verify:arkadium-contract
-npm run verify:arkadium-snapshot
+npm run arkadium:verify-snapshot
 npm run verify:telemetry-integration
 npm run verify:publisher-package
 ```
@@ -568,7 +574,25 @@ The publisher package gate verifies:
 - Production analytics fields require an allowlisted schema review.
 - Dependency and SDK upgrades require a manifest update, snapshot refresh, tests, and new Sandbox evidence.
 
-## 17. Rollout sequence
+## 17. Implementation workstreams
+
+The system design is intentionally cross-repository, but implementation planning is split into three independently reviewable plans.
+
+### Workstream A — publisher platform in `expo-swarm-forge`
+
+Delivers the vendor snapshot, exact SDK build, runtime configuration, session controller, canonical events, Arkadium adapter, Sandbox diagnostics, and contract tests. It can land before Ark Eye changes by using a bounded in-memory Game Eye test sink.
+
+### Workstream B — game telemetry in `ark-eye`
+
+Delivers the game-event schema, `/v1/game-events`, JetStream stream, durable writer, ClickHouse migration, materialized views, rate limits, redaction, and service-level tests. It does not modify `/imp`.
+
+### Workstream C — cross-repository evidence and release gates
+
+Delivers Docker Compose integration, browser scenarios, ClickHouse assertions, official Sandbox evidence, protected DEV workflow, publisher package, and release manifest. It begins only after Workstreams A and B expose their reviewed interfaces.
+
+Each workstream receives its own implementation plan. Changes land as small ordered pull requests; no single pull request spans all three workstreams.
+
+## 18. Rollout sequence
 
 1. Import and verify the typed platform snapshot and exact official SDK.
 2. Refactor Canyon Charms lifecycle into the session controller without changing game rules.
@@ -579,9 +603,9 @@ The publisher package gate verifies:
 7. Add protected Arkadium DEV verification.
 8. Assemble the publisher package and update the classroom and delivery documentation.
 
-Each step must land as an independently testable pull request or a small ordered PR series. The game-core tests remain unchanged unless a genuine game-rule defect is discovered.
+The game-core tests remain unchanged unless a genuine game-rule defect is discovered.
 
-## 18. Acceptance criteria
+## 19. Acceptance criteria
 
 The implementation is accepted when:
 
@@ -598,7 +622,7 @@ The implementation is accepted when:
 11. One publisher-package command produces the game, manifests, evidence, hashes, and integration report.
 12. No credential, identity, save payload, or sensitive SDK data appears in source, logs, ClickHouse, or downloadable evidence.
 
-## 19. External dependencies that remain real blockers
+## 20. External dependencies that remain real blockers
 
 The repository can fully prepare and verify the integration architecture without publisher secrets. The following cannot be manufactured and remain external release inputs:
 
