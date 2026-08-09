@@ -20,7 +20,7 @@ jobs:
       - name: Discover immutable CDN candidates
         shell: bash
         env:
-          SOURCE_COMMIT: baf9e0f510b9434931673561603f1b9c5b994f2a
+          SOURCE_COMMIT: 709a1556fda3fa7a1506d46ec704cc654308775b
           GAME_PATH: example/canyon-charms
         run: |
           set -Eeuo pipefail
@@ -68,9 +68,11 @@ jobs:
             verify_asset "$name" "$base" index.html 'text/html' || return 1
             grep -F '<title>Canyon Charms</title>' "$tmp/${name}_index.html" || return 1
             grep -F './styles.css' "$tmp/${name}_index.html" || return 1
+            grep -F './clarity.css' "$tmp/${name}_index.html" || return 1
             grep -F './src/main.js' "$tmp/${name}_index.html" || return 1
 
             verify_asset "$name" "$base" styles.css 'text/css' || return 1
+            verify_asset "$name" "$base" clarity.css 'text/css' || return 1
             verify_asset "$name" "$base" src/main.js '(text|application)/(javascript|ecmascript)' || return 1
             verify_asset "$name" "$base" src/core/random.js '(text|application)/(javascript|ecmascript)' || return 1
             verify_asset "$name" "$base" src/core/board.js '(text|application)/(javascript|ecmascript)' || return 1
@@ -151,6 +153,7 @@ jobs:
           assert.match(html, /<title>Canyon Charms<\/title>/);
           assert.match(html, /Canyon Charms board\. Score 0 of 5,000\./);
           assert.match(html, /data-reduced-motion="false"/);
+          assert.match(html, /Three in a row/);
           const bootTag = html.match(/<[^>]+data-role="boot-error"[^>]*>/)?.[0] ?? '';
           assert.match(bootTag, /\shidden(?:="")?(?:\s|>)/);
           console.log(`provider=${process.env.PROVIDER} status=dom-booted`);

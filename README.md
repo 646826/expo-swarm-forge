@@ -8,7 +8,7 @@ The project keeps deterministic game rules separate from Canvas presentation, DO
 
 ## Play Canyon Charms
 
-**[Play the last browser-verified release](https://cdn.staticdelivr.com/gh/646826/expo-swarm-forge/baf9e0f510b9434931673561603f1b9c5b994f2a/example/canyon-charms/index.html)**
+**[Play the current browser-verified release](https://cdn.staticdelivr.com/gh/646826/expo-swarm-forge/709a1556fda3fa7a1506d46ec704cc654308775b/example/canyon-charms/index.html)**
 
 Canyon Charms is an original 8 × 8 match-3 game:
 
@@ -18,7 +18,7 @@ Canyon Charms is an original 8 × 8 match-3 game:
 - match five, a T, or an L to forge dynamite;
 - wait eight quiet seconds when you need an automatic hint.
 
-The preview is pinned to an exact merged commit. GitHub Actions checks its HTML, CSS, JavaScript-module MIME types, dynamic application state, hidden boot-error surface, and a real Chrome screenshot.
+The preview is pinned to an exact merged commit. GitHub Actions checks its HTML, both CSS files, JavaScript-module MIME types, dynamic application state, hidden boot-error surface, onboarding copy, and a real Chrome screenshot.
 
 ## Repository status
 

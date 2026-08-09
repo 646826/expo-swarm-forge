@@ -2,25 +2,32 @@
 
 ## Repository milestones
 
-The `main` history intentionally records three reviewable layers:
+The `main` history intentionally records four reviewable layers:
 
 1. reusable SwarmForge browser-game starter;
 2. complete `example/canyon-charms/` game;
-3. architecture, QA, classroom documentation and GitHub Pages deployment.
+3. architecture, QA, classroom documentation and GitHub Pages deployment;
+4. clearer first-minute onboarding and a complete repository verification gate.
 
-This order demonstrates that the reusable foundation existed before the reference game.
+This order demonstrates that the reusable foundation existed before the reference game and that later presentation improvements did not rewrite deterministic game rules.
 
 ## Local verification
 
+Run the complete repository gate:
+
 ```bash
-npm test
-npm run check -- --project example/canyon-charms
-npm run build -- --project example/canyon-charms
-npm run package -- --project example/canyon-charms
-node tools/generate-canyon-handbook.mjs \
-  --output example/canyon-charms/dist/student-handbook-ru.pdf
+npm run verify
+```
+
+It executes all Node tests, checks and builds every discovered game, creates deterministic starter and Canyon Charms ZIP packages, and generates the Russian student handbook.
+
+For an interactive local preview:
+
+```bash
 npm run serve -- example/canyon-charms/dist 4173
 ```
+
+Open `http://127.0.0.1:4173`.
 
 ## Public deployment
 
@@ -49,15 +56,22 @@ https://646826.github.io/expo-swarm-forge/student-handbook-ru.pdf
 
 ## Browser-verified immutable preview
 
-While the one-time Pages setting remains external, the exact merged game is available immediately at:
+While the one-time Pages setting remains external, the clarified game release is available immediately at this exact merged commit:
 
 ```text
-https://cdn.staticdelivr.com/gh/646826/expo-swarm-forge/baf9e0f510b9434931673561603f1b9c5b994f2a/example/canyon-charms/index.html
+https://cdn.staticdelivr.com/gh/646826/expo-swarm-forge/709a1556fda3fa7a1506d46ec704cc654308775b/example/canyon-charms/index.html
 ```
 
-The workflow `.github/workflows/public-preview-smoke.yml` first checks HTTP success and MIME types for the HTML, CSS, entry module and every imported game module. It then loads the selected URL in a real headless Chrome session, verifies that the ES modules changed the Canvas description to `Canyon Charms board. Score 0 of 5,000.`, confirms reduced-motion state was initialized, confirms the boot-error surface remains hidden, and captures a 1280×720 screenshot.
+The workflow `.github/workflows/public-preview-smoke.yml` checks HTTP success and safe MIME types for the HTML, `styles.css`, `clarity.css`, the entry module, and every imported game module. It then loads the URL in a real headless Chrome session and verifies:
 
-Workflow run `31287321962` selected `staticdelivr`, completed the Chrome boot, and uploaded the browser evidence artifact. jsDelivr was rejected because it serves `index.html` as `text/plain`; RawGitHack was rejected for direct use because normal browsers display an external-content confirmation page.
+- the exact `<title>Canyon Charms</title>` marker;
+- dynamic Canvas state containing `Canyon Charms board. Score 0 of 5,000.`;
+- initialized reduced-motion state;
+- visible onboarding copy including `Three in a row`;
+- a hidden boot-error surface;
+- a non-empty 1280 × 720 screenshot.
+
+The preview-pin pull request is mergeable only after this browser workflow and the complete repository CI both pass. Its uploaded DOM, Chrome log, screenshot, release ZIPs, build report, and Russian handbook form the release evidence for the pinned commit.
 
 This is a third-party CDN mirror of an exact Git commit, not the canonical publisher host. The URL is intentionally commit-pinned and therefore does not silently change when `main` advances.
 
@@ -65,8 +79,9 @@ This is a third-party CDN mirror of an exact Git commit, not the canonical publi
 
 The root packaging command creates a deterministic ZIP from the verified game build. Before any external submission, record:
 
-- exact `main` SHA;
-- Pages workflow run ID and resulting URL;
+- exact game-release SHA;
+- exact documentation and preview-pin merge SHA;
+- successful CI and browser-smoke workflow run IDs;
 - ZIP SHA-256 and build-report total bytes;
 - desktop and phone screenshots;
 - browser and real-device matrix;
