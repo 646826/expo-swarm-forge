@@ -12,6 +12,8 @@
     "build": "node scripts/build.mjs",
     "package": "node scripts/package.mjs",
     "serve": "node scripts/serve.mjs",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "arkadium:sync": "node scripts/sync-arkadium-snapshot.mjs",
+    "arkadium:verify-snapshot": "node scripts/verify-arkadium-snapshot.mjs"
   }
 }

@@ -1,7 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { ROOT } from './project-lib.mjs';
+import { join } from 'node:path';
+import { ROOT, pathExists } from './project-lib.mjs';
 
-const steps = [
+const steps = [];
+
+if (await pathExists(join(ROOT, 'vendor', 'arkadium-platform', 'manifest.json'))) {
+  steps.push({
+    name: 'Arkadium adapter snapshot',
+    command: process.execPath,
+    args: ['scripts/verify-arkadium-snapshot.mjs'],
+  });
+}
+
+steps.push(
   {
     name: 'all Node tests',
     command: process.execPath,
@@ -31,7 +42,7 @@ const steps = [
       'example/canyon-charms/dist/student-handbook-ru.pdf',
     ],
   },
-];
+);
 
 for (const step of steps) {
   console.log(`\n=== ${step.name} ===`);
@@ -47,4 +58,4 @@ for (const step of steps) {
   }
 }
 
-console.log('\nVerification complete: tests, checks, builds, packages, and handbook passed.');
+console.log('\nVerification complete: tests, checks, builds, packages, handbook, and any committed integration snapshots passed.');
