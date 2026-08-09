@@ -47,6 +47,18 @@ Treat the URL as verified only after the deployment job succeeds and its final c
 https://646826.github.io/expo-swarm-forge/student-handbook-ru.pdf
 ```
 
+## Verified immutable preview
+
+While the one-time Pages setting remains external, the exact merged game is available through this immutable public preview:
+
+```text
+https://rawcdn.githack.com/646826/expo-swarm-forge/baf9e0f510b9434931673561603f1b9c5b994f2a/example/canyon-charms/index.html
+```
+
+The workflow `.github/workflows/public-preview-smoke.yml` verifies HTTP success, `text/html`, `text/css`, JavaScript module MIME types, every referenced game module, and the exact `<title>Canyon Charms</title>` marker. The first successful verification was workflow run `31287083085`.
+
+This is a third-party CDN mirror of an exact Git commit, not the canonical publisher host. The URL is intentionally commit-pinned and therefore does not silently change when `main` advances.
+
 ## Publisher package
 
 The root packaging command creates a deterministic ZIP from the verified game build. Before any external submission, record:
