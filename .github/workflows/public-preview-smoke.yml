@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/public-preview-smoke.yml'
       - 'docs/CANYON_CHARMS_DELIVERY.md'
+      - 'README.md'
   workflow_dispatch:
 
 permissions:
@@ -14,9 +15,9 @@ permissions:
 jobs:
   verify-preview:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
-      - name: Verify an immutable CDN preview
+      - name: Verify immutable CDN assets
         shell: bash
         env:
           SOURCE_COMMIT: baf9e0f510b9434931673561603f1b9c5b994f2a
@@ -28,10 +29,13 @@ jobs:
           trap 'rm -rf "$tmp"' EXIT
 
           verify_asset() {
-            local base="$1"
-            local relative_path="$2"
-            local content_type_pattern="$3"
-            local output="$tmp/$(printf '%s' "$relative_path" | tr '/' '_')"
+            local provider="$1"
+            local base="$2"
+            local relative_path="$3"
+            local content_type_pattern="$4"
+            local safe_name
+            safe_name="$(printf '%s_%s' "$provider" "$relative_path" | tr '/' '_')"
+            local output="$tmp/$safe_name"
             local headers="${output}.headers"
 
             if ! curl --fail --silent --show-error --location --retry 3 \
@@ -55,31 +59,94 @@ jobs:
             local base="$2"
             printf 'Checking provider=%s base=%s\n' "$name" "$base"
 
-            verify_asset "$base" index.html 'text/html'
-            grep -F '<title>Canyon Charms</title>' "$tmp/index.html"
-            grep -F './styles.css' "$tmp/index.html"
-            grep -F './src/main.js' "$tmp/index.html"
+            verify_asset "$name" "$base" index.html 'text/html'
+            grep -F '<title>Canyon Charms</title>' "$tmp/${name}_index.html"
+            grep -F './styles.css' "$tmp/${name}_index.html"
+            grep -F './src/main.js' "$tmp/${name}_index.html"
 
-            verify_asset "$base" styles.css 'text/css'
-            verify_asset "$base" src/main.js '(text|application)/(javascript|ecmascript)'
-            verify_asset "$base" src/core/random.js '(text|application)/(javascript|ecmascript)'
-            verify_asset "$base" src/core/board.js '(text|application)/(javascript|ecmascript)'
-            verify_asset "$base" src/core/game-state.js '(text|application)/(javascript|ecmascript)'
-            verify_asset "$base" src/platform/platform.js '(text|application)/(javascript|ecmascript)'
+            verify_asset "$name" "$base" styles.css 'text/css'
+            verify_asset "$name" "$base" src/main.js '(text|application)/(javascript|ecmascript)'
+            verify_asset "$name" "$base" src/core/random.js '(text|application)/(javascript|ecmascript)'
+            verify_asset "$name" "$base" src/core/board.js '(text|application)/(javascript|ecmascript)'
+            verify_asset "$name" "$base" src/core/game-state.js '(text|application)/(javascript|ecmascript)'
+            verify_asset "$name" "$base" src/platform/platform.js '(text|application)/(javascript|ecmascript)'
+            printf 'provider=%s status=ok\n' "$name"
           }
 
           rawcdn="https://rawcdn.githack.com/${GITHUB_REPOSITORY}/${SOURCE_COMMIT}/${GAME_PATH}"
           jsdelivr="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@${SOURCE_COMMIT}/${GAME_PATH}"
-          verified=''
+          rawcdn_ok=false
+          jsdelivr_ok=false
 
-          if verify_provider rawcdn "$rawcdn"; then
-            verified="${rawcdn}/index.html"
-          elif verify_provider jsdelivr "$jsdelivr"; then
-            verified="${jsdelivr}/index.html"
+          if verify_provider rawcdn "$rawcdn"; then rawcdn_ok=true; fi
+          if verify_provider jsdelivr "$jsdelivr"; then jsdelivr_ok=true; fi
+
+          if [[ "$jsdelivr_ok" == true ]]; then
+            preferred="${jsdelivr}/index.html"
+            preferred_provider=jsdelivr
+          elif [[ "$rawcdn_ok" == true ]]; then
+            preferred="${rawcdn}/index.html"
+            preferred_provider=rawcdn
           else
             echo 'No immutable public preview provider passed HTTP and MIME checks.' >&2
             exit 1
           fi
 
-          printf 'verified_preview_url=%s\n' "$verified"
-          printf '%s\n' "$verified" >> "$GITHUB_STEP_SUMMARY"
+          printf 'PREVIEW_URL=%s\n' "$preferred" >> "$GITHUB_ENV"
+          printf 'PREFERRED_PROVIDER=%s\n' "$preferred_provider" >> "$GITHUB_ENV"
+          printf 'preferred_provider=%s\nverified_preview_url=%s\n' \
+            "$preferred_provider" "$preferred"
+
+      - name: Boot preferred preview in headless Chrome
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          browser="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -x "$browser"
+
+          dom="$RUNNER_TEMP/canyon-preview-dom.html"
+          log="$RUNNER_TEMP/canyon-preview-chrome.log"
+          screenshot="$RUNNER_TEMP/canyon-preview.png"
+          url="${PREVIEW_URL}?seed=12345"
+
+          "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --hide-scrollbars \
+            --window-size=1280,720 \
+            --virtual-time-budget=5000 \
+            --dump-dom \
+            "$url" > "$dom" 2> "$log"
+
+          grep -F '<title>Canyon Charms</title>' "$dom"
+          grep -F 'Canyon Charms board. Score 0 of 5,000.' "$dom"
+          grep -E 'data-role="boot-error" hidden(=""|>)' "$dom"
+          grep -E 'data-reduced-motion="false"' "$dom"
+
+          "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --hide-scrollbars \
+            --window-size=1280,720 \
+            --virtual-time-budget=5000 \
+            --screenshot="$screenshot" \
+            "$url" >> "$log" 2>&1
+
+          test -s "$screenshot"
+          printf 'browser=chrome provider=%s status=booted\n' "$PREFERRED_PROVIDER"
+          printf '### Verified live preview\n\n%s\n' "$PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload browser evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: canyon-charms-public-preview-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/canyon-preview.png
+            ${{ runner.temp }}/canyon-preview-dom.html
+            ${{ runner.temp }}/canyon-preview-chrome.log
+          if-no-files-found: error
+          retention-days: 7
