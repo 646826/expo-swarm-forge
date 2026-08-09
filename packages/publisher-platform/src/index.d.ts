@@ -5,13 +5,22 @@ export type SerializableValue =
   | { readonly [key: string]: SerializableValue };
 
 export type UserState = 'anonymous' | 'registered' | 'subscriber';
+export type LifecycleState = 'new' | 'initialized' | 'ready' | 'started' | 'ended' | 'destroyed';
+
+export declare const PLATFORM_ERROR_CODES: Readonly<{
+  DESTROYED: 'DESTROYED';
+  INSUFFICIENT_FUNDS: 'INSUFFICIENT_FUNDS';
+  INVALID_ARGUMENT: 'INVALID_ARGUMENT';
+  INVALID_LIFECYCLE: 'INVALID_LIFECYCLE';
+  NOT_AUTHENTICATED: 'NOT_AUTHENTICATED';
+  NOT_INITIALIZED: 'NOT_INITIALIZED';
+  SAVE_TOO_LARGE: 'SAVE_TOO_LARGE';
+  SDK_FAILURE: 'SDK_FAILURE';
+  UNSUPPORTED_CAPABILITY: 'UNSUPPORTED_CAPABILITY';
+}>;
+
 export type PlatformErrorCode =
-  | 'NOT_INITIALIZED'
-  | 'PLATFORM_DESTROYED'
-  | 'UNSUPPORTED_CAPABILITY'
-  | 'INVALID_ARGUMENT'
-  | 'INITIALIZATION_FAILED'
-  | 'OPERATION_FAILED';
+  (typeof PLATFORM_ERROR_CODES)[keyof typeof PLATFORM_ERROR_CODES];
 
 export interface PlatformCapabilities {
   readonly persistence: boolean;
@@ -31,6 +40,7 @@ export interface PlatformContext {
 export interface PlatformError {
   readonly code: PlatformErrorCode;
   readonly message: string;
+  readonly recoverable: boolean;
 }
 
 export type Result<T> =
@@ -94,14 +104,25 @@ export interface StandalonePlatformOptions {
 }
 
 export declare const NO_CAPABILITIES: Readonly<PlatformCapabilities>;
-export declare const PLATFORM_FAILURES: Readonly<{
-  notInitialized: Result<never>;
-  destroyed: Result<never>;
-  unsupported: Result<never>;
-  invalidArgument: Result<never>;
-}>;
 export declare function ok<T>(value: T): Result<T>;
-export declare function failure(code: PlatformErrorCode, message: string): Result<never>;
+export declare function err<T = never>(
+  code: PlatformErrorCode,
+  message: string,
+  recoverable?: boolean,
+): Result<T>;
+export declare function sdkFailure<T = never>(): Result<T>;
+
+export declare class LifecycleGuard {
+  get state(): LifecycleState;
+  assertState(...allowed: readonly LifecycleState[]): Result<void>;
+  markInitialized(): Result<void>;
+  markReady(): Result<void>;
+  markGameStarted(): Result<void>;
+  markGameEnded(): Result<void>;
+  assertGameplayActive(): Result<void>;
+  markDestroyed(): Result<void>;
+}
+
 export declare function createStandalonePublisherPlatform(
   options?: StandalonePlatformOptions,
 ): PublisherPlatform;
