@@ -8,9 +8,9 @@ The repository deliberately separates deterministic game rules from Canvas prese
 
 The immutable public preview is pinned to an exact merged commit:
 
-**[Play Canyon Charms](https://rawcdn.githack.com/646826/expo-swarm-forge/baf9e0f510b9434931673561603f1b9c5b994f2a/example/canyon-charms/index.html)**
+**[Play Canyon Charms](https://cdn.staticdelivr.com/gh/646826/expo-swarm-forge/baf9e0f510b9434931673561603f1b9c5b994f2a/example/canyon-charms/index.html)**
 
-A dedicated GitHub Actions smoke test verifies the preview HTML, CSS, every ES module, MIME types, and the game title. This third-party mirror is the immediate preview while the repository owner completes the one-time GitHub Pages source selection described in [`docs/CANYON_CHARMS_DELIVERY.md`](docs/CANYON_CHARMS_DELIVERY.md).
+A dedicated GitHub Actions smoke test verifies the preview HTML, CSS, every ES module, MIME types, dynamic Canvas application state, hidden boot-error surface, and a real headless-Chrome screenshot. This third-party mirror is the immediate preview while the repository owner completes the one-time GitHub Pages source selection described in [`docs/CANYON_CHARMS_DELIVERY.md`](docs/CANYON_CHARMS_DELIVERY.md).
 
 ## Five-minute start
 
