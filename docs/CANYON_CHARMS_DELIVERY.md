@@ -47,15 +47,17 @@ Treat the URL as verified only after the deployment job succeeds and its final c
 https://646826.github.io/expo-swarm-forge/student-handbook-ru.pdf
 ```
 
-## Verified immutable preview
+## Browser-verified immutable preview
 
-While the one-time Pages setting remains external, the exact merged game is available through this immutable public preview:
+While the one-time Pages setting remains external, the exact merged game is available immediately at:
 
 ```text
-https://rawcdn.githack.com/646826/expo-swarm-forge/baf9e0f510b9434931673561603f1b9c5b994f2a/example/canyon-charms/index.html
+https://cdn.staticdelivr.com/gh/646826/expo-swarm-forge/baf9e0f510b9434931673561603f1b9c5b994f2a/example/canyon-charms/index.html
 ```
 
-The workflow `.github/workflows/public-preview-smoke.yml` verifies HTTP success, `text/html`, `text/css`, JavaScript module MIME types, every referenced game module, and the exact `<title>Canyon Charms</title>` marker. The first successful verification was workflow run `31287083085`.
+The workflow `.github/workflows/public-preview-smoke.yml` first checks HTTP success and MIME types for the HTML, CSS, entry module and every imported game module. It then loads the selected URL in a real headless Chrome session, verifies that the ES modules changed the Canvas description to `Canyon Charms board. Score 0 of 5,000.`, confirms reduced-motion state was initialized, confirms the boot-error surface remains hidden, and captures a 1280×720 screenshot.
+
+Workflow run `31287321962` selected `staticdelivr`, completed the Chrome boot, and uploaded the browser evidence artifact. jsDelivr was rejected because it serves `index.html` as `text/plain`; RawGitHack was rejected for direct use because normal browsers display an external-content confirmation page.
 
 This is a third-party CDN mirror of an exact Git commit, not the canonical publisher host. The URL is intentionally commit-pinned and therefore does not silently change when `main` advances.
 
