@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 
 import {
   EXPECTED_ARKADIUM_SDK_VERSION,
@@ -26,8 +26,11 @@ if (!sourceArg) {
 const destinationArg = option('--destination') ?? 'vendor/arkadium-platform';
 const source = resolve(process.cwd(), sourceArg);
 const destination = resolve(ROOT, destinationArg);
-const rel = destination.slice(ROOT.length + 1);
-if (destination === ROOT || destination.startsWith(`${ROOT}/../`) || rel.startsWith('..')) {
+const repositoryRelative = relative(ROOT, destination);
+const escapesRepository = repositoryRelative === ''
+  || repositoryRelative.startsWith('..')
+  || repositoryRelative.split(sep).includes('..');
+if (escapesRepository) {
   throw new TypeError('Snapshot destination must stay inside the repository.');
 }
 
