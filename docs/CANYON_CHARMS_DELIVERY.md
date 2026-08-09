@@ -24,13 +24,24 @@ npm run serve -- example/canyon-charms/dist 4173
 
 ## Public deployment
 
-The workflow `.github/workflows/deploy-canyon-pages.yml` deploys from `main` using the official GitHub Pages actions. The canonical expected repository URL is:
+The workflow `.github/workflows/deploy-canyon-pages.yml` deploys from `main` using the official GitHub Pages actions.
+
+Before the first deployment, a repository administrator must perform this one-time setup in GitHub:
+
+1. Open **Settings**.
+2. Open **Pages**.
+3. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+4. Open **Actions**, select **Deploy Canyon Charms to GitHub Pages**, and choose **Run workflow** on `main`.
+
+The default `GITHUB_TOKEN` used by a workflow cannot perform this first-time Pages enablement. Until the source is selected, the public address returns `404` even though the game and deployment workflow are present in `main`.
+
+The canonical expected repository URL is:
 
 ```text
 https://646826.github.io/expo-swarm-forge/
 ```
 
-Treat the URL as verified only after the deployment job succeeds and its final curl checks pass. The Russian PDF is published at:
+Treat the URL as verified only after the deployment job succeeds and its final curl checks pass. After that successful deployment, the Russian PDF is available at:
 
 ```text
 https://646826.github.io/expo-swarm-forge/student-handbook-ru.pdf
