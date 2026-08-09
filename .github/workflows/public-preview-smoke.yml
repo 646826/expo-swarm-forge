@@ -15,9 +15,9 @@ permissions:
 jobs:
   verify-preview:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
-      - name: Verify immutable CDN assets
+      - name: Discover immutable CDN candidates
         shell: bash
         env:
           SOURCE_COMMIT: baf9e0f510b9434931673561603f1b9c5b994f2a
@@ -27,6 +27,8 @@ jobs:
 
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
+          candidates="$RUNNER_TEMP/canyon-preview-candidates.txt"
+          : > "$candidates"
 
           verify_asset() {
             local provider="$1"
@@ -41,6 +43,8 @@ jobs:
             if ! curl --fail --silent --show-error --location --retry 3 \
               --retry-all-errors --connect-timeout 15 --max-time 60 \
               -D "$headers" "${base}/${relative_path}" -o "$output"; then
+              printf 'provider=%s asset=%s status=http-failure\n' \
+                "$provider" "$relative_path" >&2
               return 1
             fi
 
@@ -49,7 +53,8 @@ jobs:
               "${headers}.normalized"; then
               printf 'provider=%s asset=%s status=invalid-content-type\n' \
                 "$provider" "$relative_path" >&2
-              cat "${headers}.normalized" >&2
+              grep -Ei '^(HTTP/|content-type:|x-content-type-options:)' \
+                "${headers}.normalized" >&2 || true
               return 1
             fi
             test -s "$output"
@@ -71,75 +76,125 @@ jobs:
             verify_asset "$name" "$base" src/core/board.js '(text|application)/(javascript|ecmascript)' || return 1
             verify_asset "$name" "$base" src/core/game-state.js '(text|application)/(javascript|ecmascript)' || return 1
             verify_asset "$name" "$base" src/platform/platform.js '(text|application)/(javascript|ecmascript)' || return 1
-            printf 'provider=%s status=ok\n' "$name"
+            printf 'provider=%s status=asset-compatible\n' "$name"
           }
 
-          rawcdn="https://rawcdn.githack.com/${GITHUB_REPOSITORY}/${SOURCE_COMMIT}/${GAME_PATH}"
-          jsdelivr="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@${SOURCE_COMMIT}/${GAME_PATH}"
-          rawcdn_ok=false
-          jsdelivr_ok=false
+          add_candidate() {
+            local name="$1"
+            local base="$2"
+            if verify_provider "$name" "$base"; then
+              printf '%s|%s/index.html\n' "$name" "$base" >> "$candidates"
+            fi
+          }
 
-          if verify_provider rawcdn "$rawcdn"; then rawcdn_ok=true; fi
-          if verify_provider jsdelivr "$jsdelivr"; then jsdelivr_ok=true; fi
+          add_candidate staticdelivr \
+            "https://cdn.staticdelivr.com/gh/${GITHUB_REPOSITORY}/${SOURCE_COMMIT}/${GAME_PATH}"
+          add_candidate statically-at \
+            "https://cdn.statically.io/gh/${GITHUB_REPOSITORY}@${SOURCE_COMMIT}/${GAME_PATH}"
+          add_candidate statically-path \
+            "https://cdn.statically.io/gh/${GITHUB_REPOSITORY}/${SOURCE_COMMIT}/${GAME_PATH}"
+          add_candidate githubraw \
+            "https://cdn.githubraw.com/${GITHUB_REPOSITORY}/${SOURCE_COMMIT}/${GAME_PATH}"
+          add_candidate rawcdn \
+            "https://rawcdn.githack.com/${GITHUB_REPOSITORY}/${SOURCE_COMMIT}/${GAME_PATH}"
+          add_candidate jsdelivr \
+            "https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@${SOURCE_COMMIT}/${GAME_PATH}"
 
-          if [[ "$jsdelivr_ok" == true ]]; then
-            preferred="${jsdelivr}/index.html"
-            preferred_provider=jsdelivr
-          elif [[ "$rawcdn_ok" == true ]]; then
-            preferred="${rawcdn}/index.html"
-            preferred_provider=rawcdn
-          else
-            echo 'No immutable public preview provider passed HTTP and MIME checks.' >&2
+          if [[ ! -s "$candidates" ]]; then
+            echo 'No immutable provider passed HTTP and MIME checks.' >&2
             exit 1
           fi
 
-          printf 'PREVIEW_URL=%s\n' "$preferred" >> "$GITHUB_ENV"
-          printf 'PREFERRED_PROVIDER=%s\n' "$preferred_provider" >> "$GITHUB_ENV"
-          printf 'preferred_provider=%s\nverified_preview_url=%s\n' \
-            "$preferred_provider" "$preferred"
+          printf 'CANDIDATES_FILE=%s\n' "$candidates" >> "$GITHUB_ENV"
+          printf 'Asset-compatible candidates:\n'
+          cat "$candidates"
 
-      - name: Boot preferred preview in headless Chrome
+      - name: Select a provider that boots in headless Chrome
         shell: bash
         run: |
           set -Eeuo pipefail
           browser="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           test -x "$browser"
 
-          dom="$RUNNER_TEMP/canyon-preview-dom.html"
-          log="$RUNNER_TEMP/canyon-preview-chrome.log"
-          screenshot="$RUNNER_TEMP/canyon-preview.png"
-          url="${PREVIEW_URL}?seed=12345"
+          evidence="$RUNNER_TEMP/canyon-preview-evidence"
+          mkdir -p "$evidence"
+          selected_provider=''
+          selected_url=''
 
-          "$browser" \
-            --headless=new \
-            --no-sandbox \
-            --disable-gpu \
-            --disable-dev-shm-usage \
-            --hide-scrollbars \
-            --window-size=1280,720 \
-            --virtual-time-budget=5000 \
-            --dump-dom \
-            "$url" > "$dom" 2> "$log"
+          verify_browser_boot() {
+            local provider="$1"
+            local preview_url="$2"
+            local stem="$evidence/$provider"
+            local dom="${stem}.html"
+            local log="${stem}.log"
+            local url="${preview_url}?seed=12345"
 
-          grep -F '<title>Canyon Charms</title>' "$dom"
-          grep -F 'Canyon Charms board. Score 0 of 5,000.' "$dom"
-          grep -E 'data-role="boot-error" hidden(=""|>)' "$dom"
-          grep -E 'data-reduced-motion="false"' "$dom"
+            printf 'Browser checking provider=%s url=%s\n' "$provider" "$url"
+            if ! "$browser" \
+              --headless=new \
+              --no-sandbox \
+              --disable-gpu \
+              --disable-dev-shm-usage \
+              --hide-scrollbars \
+              --window-size=1280,720 \
+              --virtual-time-budget=5000 \
+              --dump-dom \
+              "$url" > "$dom" 2> "$log"; then
+              printf 'provider=%s status=chrome-command-failed\n' "$provider" >&2
+              return 1
+            fi
 
-          "$browser" \
-            --headless=new \
-            --no-sandbox \
-            --disable-gpu \
-            --disable-dev-shm-usage \
-            --hide-scrollbars \
-            --window-size=1280,720 \
-            --virtual-time-budget=5000 \
-            --screenshot="$screenshot" \
-            "$url" >> "$log" 2>&1
+            if ! PROVIDER="$provider" DOM_FILE="$dom" node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const assert = require('node:assert/strict');
+          const html = readFileSync(process.env.DOM_FILE, 'utf8');
+          assert.match(html, /<title>Canyon Charms<\/title>/);
+          assert.match(html, /Canyon Charms board\. Score 0 of 5,000\./);
+          assert.match(html, /data-reduced-motion="false"/);
+          const bootTag = html.match(/<[^>]+data-role="boot-error"[^>]*>/)?.[0] ?? '';
+          assert.match(bootTag, /\shidden(?:="")?(?:\s|>)/);
+          console.log(`provider=${process.env.PROVIDER} status=dom-booted`);
+          NODE
+            then
+              printf 'provider=%s status=browser-incompatible\n' "$provider" >&2
+              return 1
+            fi
 
-          test -s "$screenshot"
-          printf 'browser=chrome provider=%s status=booted\n' "$PREFERRED_PROVIDER"
-          printf '### Verified live preview\n\n%s\n' "$PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+            local screenshot="${stem}.png"
+            if ! "$browser" \
+              --headless=new \
+              --no-sandbox \
+              --disable-gpu \
+              --disable-dev-shm-usage \
+              --hide-scrollbars \
+              --window-size=1280,720 \
+              --virtual-time-budget=5000 \
+              --screenshot="$screenshot" \
+              "$url" >> "$log" 2>&1; then
+              return 1
+            fi
+            test -s "$screenshot"
+          }
+
+          while IFS='|' read -r provider preview_url; do
+            if verify_browser_boot "$provider" "$preview_url"; then
+              selected_provider="$provider"
+              selected_url="$preview_url"
+              cp "$evidence/${provider}.html" "$RUNNER_TEMP/canyon-preview-dom.html"
+              cp "$evidence/${provider}.log" "$RUNNER_TEMP/canyon-preview-chrome.log"
+              cp "$evidence/${provider}.png" "$RUNNER_TEMP/canyon-preview.png"
+              break
+            fi
+          done < "$CANDIDATES_FILE"
+
+          if [[ -z "$selected_url" ]]; then
+            echo 'No asset-compatible provider booted the game in Chrome.' >&2
+            exit 1
+          fi
+
+          printf 'browser=chrome provider=%s status=booted\n' "$selected_provider"
+          printf 'verified_preview_url=%s\n' "$selected_url"
+          printf '### Verified live preview\n\n%s\n' "$selected_url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload browser evidence
         if: always()
@@ -150,5 +205,6 @@ jobs:
             ${{ runner.temp }}/canyon-preview.png
             ${{ runner.temp }}/canyon-preview-dom.html
             ${{ runner.temp }}/canyon-preview-chrome.log
+            ${{ runner.temp }}/canyon-preview-evidence
           if-no-files-found: warn
           retention-days: 7
