@@ -1,0 +1,181 @@
+name: Materialize reviewed Arkadium adapter
+
+on:
+  push:
+    branches: [build/vendor-arkadium-adapter]
+    paths:
+      - '.bootstrap/arkadium-snapshot/**'
+      - '.github/workflows/materialize-arkadium-adapter.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-arkadium-adapter
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: build/vendor-arkadium-adapter
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Detect complete bootstrap payload
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          shopt -s nullglob
+          parts=(.bootstrap/arkadium-snapshot/part-*)
+          if (( ${#parts[@]} == 0 )); then
+            echo 'HAS_SNAPSHOT_PAYLOAD=false' >> "$GITHUB_ENV"
+            echo 'No bootstrap payload remains; nothing to materialize.'
+            exit 0
+          fi
+          if (( ${#parts[@]} != 8 )); then
+            printf 'Expected 8 payload parts, found %s.\n' "${#parts[@]}" >&2
+            exit 1
+          fi
+          echo 'HAS_SNAPSHOT_PAYLOAD=true' >> "$GITHUB_ENV"
+
+      - name: Verify and extract reviewed snapshot payload
+        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
+        shell: bash
+        env:
+          SNAPSHOT_SHA256: 320c33570a82cae554f5de184a527abd209647c06bc66a379647bb1efcfe5f10
+        run: |
+          set -Eeuo pipefail
+          shopt -s nullglob
+          parts=(.bootstrap/arkadium-snapshot/part-*)
+          payload="$RUNNER_TEMP/arkadium-adapter-snapshot.tgz"
+          cat "${parts[@]}" | base64 --decode > "$payload"
+          printf '%s  %s\n' "$SNAPSHOT_SHA256" "$payload" | sha256sum --check --strict
+
+          while IFS= read -r path; do
+            case "$path" in
+              vendor/|vendor/arkadium-platform/|vendor/arkadium-platform/*) ;;
+              *) printf 'Unexpected archive path: %s\n' "$path" >&2; exit 1 ;;
+            esac
+            case "/$path/" in
+              */../*|*/./*) printf 'Unsafe archive path: %s\n' "$path" >&2; exit 1 ;;
+            esac
+          done < <(tar -tzf "$payload")
+
+          if tar -tvzf "$payload" | awk '$1 ~ /^l/ { found=1 } END { exit(found ? 0 : 1) }'; then
+            echo 'Snapshot archive contains a symbolic link.' >&2
+            exit 1
+          fi
+
+          tar -xzf "$payload" -C .
+          test -f vendor/arkadium-platform/manifest.json
+          test -f vendor/arkadium-platform/SOURCE_EXPORT.md
+
+      - name: Pin exact runtime and build dependencies
+        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const { readFileSync, writeFileSync } = require('node:fs');
+          const path = 'package.json';
+          const pkg = JSON.parse(readFileSync(path, 'utf8'));
+          const sort = (value) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b, 'en')));
+          pkg.dependencies = sort({ ...(pkg.dependencies ?? {}), '@arkadiuminc/sdk': '2.66.2' });
+          pkg.devDependencies = sort({ ...(pkg.devDependencies ?? {}), typescript: '6.0.3', vite: '8.1.5' });
+          writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Generate dependency license and integrity inventory
+        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const { readFileSync, writeFileSync } = require('node:fs');
+          const directPackages = ['@arkadiuminc/sdk', 'typescript', 'vite'];
+          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          const lines = [
+            '# Direct Dependency Inventory',
+            '',
+            'Generated from the exact packages installed by this candidate. Values are copied from package metadata and `package-lock.json`; missing metadata is reported, never invented.',
+            '',
+            '| Package | Version | License | Repository | Lock integrity |',
+            '|---|---:|---|---|---|',
+          ];
+          const text = (value) => String(value ?? 'Not declared').replaceAll('|', '\\|').replaceAll('\n', ' ');
+          for (const name of directPackages) {
+            const packagePath = `node_modules/${name}/package.json`;
+            const metadata = JSON.parse(readFileSync(packagePath, 'utf8'));
+            const locked = lock.packages?.[`node_modules/${name}`] ?? {};
+            const repository = typeof metadata.repository === 'string'
+              ? metadata.repository
+              : metadata.repository?.url;
+            lines.push(`| \`${text(name)}\` | \`${text(metadata.version)}\` | ${text(metadata.license)} | ${text(repository)} | \`${text(locked.integrity)}\` |`);
+          }
+          lines.push(
+            '',
+            '## Adapter provenance',
+            '',
+            '- Source repository: `646826/arkadium-game-factory`',
+            '- Source commit: `020d3177a746f1fdd494a90bbd13d435e5905225`',
+            '- Official Arkadium SDK: `2.66.2`',
+            '- Source export workflow run: `31330517257`',
+            '- Source export artifact: `9042779900`',
+            '- Source archive SHA-256: `31c29a8f99b7157469684776bb6196b8b542a87dba502a5f22c0c10f943ed38e`',
+            '',
+          );
+          writeFileSync('vendor/arkadium-platform/LICENSES.md', `${lines.join('\n')}\n`);
+          NODE
+
+      - name: Verify snapshot, lock, and complete repository
+        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm run arkadium:verify-snapshot
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const assert = require('node:assert/strict');
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          assert.equal(pkg.dependencies['@arkadiuminc/sdk'], '2.66.2');
+          assert.equal(pkg.devDependencies.typescript, '6.0.3');
+          assert.equal(pkg.devDependencies.vite, '8.1.5');
+          assert.equal(lock.packages['node_modules/@arkadiuminc/sdk'].version, '2.66.2');
+          assert.equal(lock.packages['node_modules/typescript'].version, '6.0.3');
+          assert.equal(lock.packages['node_modules/vite'].version, '8.1.5');
+          NODE
+          npm run verify
+
+      - name: Commit verified source snapshot and lock
+        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf .bootstrap/arkadium-snapshot
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json vendor/arkadium-platform
+          git add -u -- .bootstrap/arkadium-snapshot
+          git diff --cached --check
+
+          unexpected="$(git diff --cached --name-only | grep -Ev '^(package\.json|package-lock\.json|vendor/arkadium-platform/|\.bootstrap/arkadium-snapshot/)' || true)"
+          if [[ -n "$unexpected" ]]; then
+            printf 'Unexpected staged paths:\n%s\n' "$unexpected" >&2
+            exit 1
+          fi
+
+          git commit -m 'build: vendor reviewed Arkadium adapter snapshot'
+          git push origin HEAD:build/vendor-arkadium-adapter
