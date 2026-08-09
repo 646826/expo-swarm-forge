@@ -4,22 +4,22 @@
 
 **Goal:** Add a real, exact-version Arkadium publisher integration foundation to `expo-swarm-forge` while preserving standalone play and keeping every independently useful slice mergeable into `main`.
 
-**Architecture:** Game rules remain publisher-neutral. A strict public runtime manifest selects `standalone`, `arkadium-sandbox`, `arkadium-dev`, or `arkadium-prod`; a typed `PublisherPlatform` boundary and explicit session controller own lifecycle ordering. The official adapter is imported from a deterministic snapshot of `arkadium-game-factory`, bundled only for Arkadium builds with the exact `@arkadiuminc/sdk` version, and verified independently from Game Eye telemetry.
+**Architecture:** Deterministic game rules remain publisher-neutral. A strict public runtime manifest selects `standalone`, `arkadium-sandbox`, `arkadium-dev`, or `arkadium-prod`; a typed `PublisherPlatform` boundary and explicit session controller own lifecycle ordering. The official adapter is imported from a deterministic snapshot of `arkadium-game-factory`, bundled only for Arkadium builds with the exact `@arkadiuminc/sdk` version, and verified independently from Game Eye telemetry.
 
 **Tech Stack:** Node.js 22.23 or newer, browser ESM, JavaScript with JSDoc plus `.d.ts` declarations, Node `node:test`, TypeScript 6.0.3 for the vendored adapter, Vite 8.1.5 for Arkadium-mode bundles, exact `@arkadiuminc/sdk` 2.66.2, GitHub Actions, headless Chrome.
 
 ## Global Constraints
 
-- Every task below lands as its own pull request and is squash-merged after fresh CI.
-- `main` must remain playable and `npm run verify` must pass after every merge.
-- The deterministic game core under `example/canyon-charms/src/core/` is unchanged unless a real rule defect is proven by a failing test.
+- Every task lands as its own pull request and is squash-merged after fresh CI.
+- `main` remains playable and `npm run verify` passes after every merge.
+- `example/canyon-charms/src/core/` is unchanged unless a failing test proves a real rule defect.
 - Publisher modes never discover or guess global method names.
 - Standalone mode never loads the official Arkadium SDK.
-- The official SDK version is exactly `2.66.2`; floating ranges are forbidden.
-- No Arkadium credential, DEV login, App Insights secret, user profile, save payload, cookie value, wallet transaction identifier, or raw SDK error enters source control, browser manifests, logs, telemetry, or evidence.
-- Placeholder publisher identifiers such as `demo`, `test`, `changeme`, empty strings, or all-zero identifiers are rejected in DEV and PROD modes.
-- Mocks may prove contract behavior only; they never satisfy Sandbox, DEV, or release evidence tiers.
-- Existing advertising endpoint `/imp` and its schema are outside this workstream and remain unchanged.
+- The SDK dependency is exactly `2.66.2`; floating ranges are forbidden.
+- No credential, DEV login, App Insights secret, profile, save payload, cookie, wallet transaction identifier, or raw SDK error enters source, browser manifests, logs, telemetry, or evidence.
+- DEV and PROD reject publisher identifiers equal to `demo`, `test`, `changeme`, `none`, `null`, empty strings, or all-zero values.
+- Mocks prove contract behavior only and never satisfy Sandbox, DEV, or release evidence tiers.
+- The existing advertising endpoint `/imp` remains unchanged.
 
 ---
 
@@ -36,69 +36,59 @@
 - Modify: `README.md`
 
 **Interfaces:**
-- Consumes: plain JSON or an environment-like object.
-- Produces:
-  - `validateRuntimeManifest(input): PublicRuntimeManifest`
-  - `runtimeManifestFromEnv(env, defaults?): PublicRuntimeManifest`
-  - `PLATFORM_MODES`
-  - `ANALYTICS_PROVIDERS`
+- `validateRuntimeManifest(input): PublicRuntimeManifest`
+- `runtimeManifestFromEnv(env): PublicRuntimeManifest`
+- `PLATFORM_MODES`
+- `ANALYTICS_PROVIDERS`
 
-- [ ] **Step 1: Write failing runtime-manifest tests**
+- [ ] **Step 1: Write the failing tests**
 
 ```js
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  runtimeManifestFromEnv,
-  validateRuntimeManifest,
-} from '../src/index.js';
+import { runtimeManifestFromEnv, validateRuntimeManifest } from '../src/index.js';
 
 const SHA = '709a1556fda3fa7a1506d46ec704cc654308775b';
 
+const standalone = {
+  schemaVersion: 1,
+  mode: 'standalone',
+  arkadiumEnvironment: null,
+  gameId: null,
+  analyticsProvider: 'none',
+  appInsightsId: null,
+  gameEyeEndpoint: null,
+  gameEyeProject: 'canyon-charms',
+  gameVersion: '1.0.0',
+  buildSha: SHA,
+};
+
 test('standalone accepts only public standalone fields', () => {
-  assert.deepEqual(validateRuntimeManifest({
-    schemaVersion: 1,
-    mode: 'standalone',
-    arkadiumEnvironment: null,
-    gameId: null,
-    analyticsProvider: 'none',
-    appInsightsId: null,
-    gameEyeEndpoint: null,
-    gameEyeProject: 'canyon-charms',
-    gameVersion: '1.0.0',
-    buildSha: SHA,
-  }).mode, 'standalone');
+  assert.equal(validateRuntimeManifest(standalone).mode, 'standalone');
+  assert.throws(() => validateRuntimeManifest({ ...standalone, password: 'secret' }), /Unknown runtime field/);
 });
 
 test('sandbox requires DEV and console analytics', () => {
-  const result = validateRuntimeManifest({
-    schemaVersion: 1,
+  const value = validateRuntimeManifest({
+    ...standalone,
     mode: 'arkadium-sandbox',
     arkadiumEnvironment: 'DEV',
-    gameId: null,
     analyticsProvider: 'console',
-    appInsightsId: null,
     gameEyeEndpoint: 'http://127.0.0.1:3001/v1/game-events',
-    gameEyeProject: 'canyon-charms',
-    gameVersion: '1.0.0',
-    buildSha: SHA,
   });
-  assert.equal(result.analyticsProvider, 'console');
+  assert.equal(value.analyticsProvider, 'console');
 });
 
 test('production rejects placeholders and non-HTTPS telemetry', () => {
   assert.throws(() => validateRuntimeManifest({
-    schemaVersion: 1,
+    ...standalone,
     mode: 'arkadium-prod',
     arkadiumEnvironment: 'PROD',
     gameId: 'demo',
     analyticsProvider: 'app-insights',
     appInsightsId: 'changeme',
     gameEyeEndpoint: 'http://example.com/v1/game-events',
-    gameEyeProject: 'canyon-charms',
-    gameVersion: '1.0.0',
-    buildSha: SHA,
-  }), /placeholder|HTTPS/);
+  }), /configuration/);
 });
 
 test('environment conversion never serializes credentials', () => {
@@ -112,24 +102,19 @@ test('environment conversion never serializes credentials', () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and confirm RED**
-
-Run:
+- [ ] **Step 2: Run RED**
 
 ```bash
 node --test packages/integration-config/test/runtime-config.test.js
 ```
 
-Expected: failure because `packages/integration-config/src/index.js` does not exist.
+Expected: module-not-found failure.
 
-- [ ] **Step 3: Implement exact validation**
+- [ ] **Step 3: Implement validation**
 
 ```js
 export const PLATFORM_MODES = Object.freeze([
-  'standalone',
-  'arkadium-sandbox',
-  'arkadium-dev',
-  'arkadium-prod',
+  'standalone', 'arkadium-sandbox', 'arkadium-dev', 'arkadium-prod',
 ]);
 export const ANALYTICS_PROVIDERS = Object.freeze(['none', 'console', 'app-insights']);
 
@@ -140,45 +125,20 @@ const ALLOWED_KEYS = new Set([
   'schemaVersion', 'mode', 'arkadiumEnvironment', 'gameId', 'analyticsProvider',
   'appInsightsId', 'gameEyeEndpoint', 'gameEyeProject', 'gameVersion', 'buildSha',
 ]);
-
-export function validateRuntimeManifest(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw new TypeError('Runtime manifest must be a plain object.');
-  }
-  for (const key of Object.keys(input)) {
-    if (!ALLOWED_KEYS.has(key)) throw new TypeError(`Unknown runtime field: ${key}`);
-  }
-  const manifest = Object.freeze({
-    schemaVersion: input.schemaVersion,
-    mode: input.mode,
-    arkadiumEnvironment: input.arkadiumEnvironment ?? null,
-    gameId: normalizeNullableString(input.gameId),
-    analyticsProvider: input.analyticsProvider,
-    appInsightsId: normalizeNullableString(input.appInsightsId),
-    gameEyeEndpoint: normalizeNullableString(input.gameEyeEndpoint),
-    gameEyeProject: input.gameEyeProject,
-    gameVersion: input.gameVersion,
-    buildSha: input.buildSha,
-  });
-  // Validate exact enums, SHA, SemVer and mode-specific combinations here.
-  return manifest;
-}
 ```
 
-The completed implementation must reject accessors, symbol keys, non-finite values, unknown fields, invalid URLs, mode/environment mismatches, and production placeholders without including rejected values in the error message.
+`validateRuntimeManifest` rejects non-plain objects, accessors, symbol keys, unknown fields, invalid enums, invalid SHA/SemVer, unsafe URLs, mode/environment mismatches, and DEV/PROD placeholders. Error messages name the invalid field but never echo its value. `runtimeManifestFromEnv` reads only allowlisted public environment keys.
 
-- [ ] **Step 4: Add public example manifests and declarations**
+- [ ] **Step 4: Add declarations and examples**
 
-`config/runtime.standalone.json` contains a valid committed standalone manifest. `config/runtime.sandbox.example.json` contains `arkadium-sandbox`, `DEV`, `console`, no App Insights identifier, and a localhost Game Eye endpoint. The `.d.ts` file declares the exact `PublicRuntimeManifest` union and function signatures from the approved design.
+`index.d.ts` declares the exact `PublicRuntimeManifest` union from the approved design. The standalone example uses build SHA `709a1556fda3fa7a1506d46ec704cc654308775b`; the Sandbox example uses `DEV`, Console analytics, no App Insights ID, and `http://127.0.0.1:3001/v1/game-events`.
 
-- [ ] **Step 5: Verify GREEN and repository compatibility**
+- [ ] **Step 5: Verify GREEN**
 
 ```bash
 node --test packages/integration-config/test/runtime-config.test.js
 npm run verify
 ```
-
-Expected: all tests pass, both game packages build, both ZIPs are produced, and the handbook is generated.
 
 - [ ] **Step 6: Commit and merge**
 
@@ -187,11 +147,9 @@ git add packages/integration-config config README.md
 git commit -m "feat: add strict Arkadium runtime configuration"
 ```
 
-Open a PR with only these files, wait for CI, squash-merge to `main`.
-
 ---
 
-### Task 2: Publisher Platform Contract and Real Standalone Adapter
+### Task 2: Typed Publisher Platform Boundary
 
 **PR title:** `feat: add typed publisher platform boundary`
 
@@ -199,35 +157,28 @@ Open a PR with only these files, wait for CI, squash-merge to `main`.
 - Create: `packages/publisher-platform/src/index.js`
 - Create: `packages/publisher-platform/src/index.d.ts`
 - Create: `packages/publisher-platform/src/standalone.js`
+- Create: `packages/publisher-platform/src/standalone-harness.js`
 - Create: `packages/publisher-platform/test/standalone.test.js`
 - Modify: `docs/ARCHITECTURE.md`
 
 **Interfaces:**
-- Consumes: locale and optional serializable local save store.
-- Produces:
-  - `ok(value)` and `failure(code, message)` result helpers.
-  - `NO_CAPABILITIES`.
-  - `createStandalonePublisherPlatform(options?): PublisherPlatform`.
-  - `.d.ts` declarations matching the approved `PublisherPlatform` contract.
+- `ok(value)` and `failure(code, message)`
+- `NO_CAPABILITIES`
+- `createStandalonePublisherPlatform(options)`
+- `createStandalonePlatformHarness(options)` for tests only
 
-- [ ] **Step 1: Write failing contract tests**
+- [ ] **Step 1: Write the failing tests**
 
 ```js
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createStandalonePublisherPlatform } from '../src/standalone.js';
+import { createStandalonePlatformHarness } from '../src/standalone-harness.js';
 
-test('standalone initializes without loading a publisher SDK', async () => {
-  const platform = createStandalonePublisherPlatform({ locale: 'en-US' });
+test('standalone initializes without an SDK', async () => {
+  const { platform } = createStandalonePlatformHarness({ locale: 'en-US' });
   const initialized = await platform.initialize();
-  assert.deepEqual(initialized, {
-    ok: true,
-    value: {
-      userState: 'anonymous',
-      locale: 'en-US',
-      capabilities: platform.capabilities,
-    },
-  });
+  assert.equal(initialized.ok, true);
+  assert.equal(initialized.value.userState, 'anonymous');
   assert.deepEqual(platform.capabilities, {
     persistence: false,
     analytics: false,
@@ -238,13 +189,13 @@ test('standalone initializes without loading a publisher SDK', async () => {
   });
 });
 
-test('pause subscriptions unsubscribe and destroy is idempotent', async () => {
-  const platform = createStandalonePublisherPlatform();
+test('subscriptions unsubscribe and destroy is idempotent', async () => {
+  const { platform, pause } = createStandalonePlatformHarness();
   let calls = 0;
   const unsubscribe = platform.onPause(() => { calls += 1; });
-  platform.__test?.pause();
+  pause();
   unsubscribe();
-  platform.__test?.pause();
+  pause();
   await platform.destroy();
   await platform.destroy();
   assert.equal(calls, 1);
@@ -257,9 +208,7 @@ test('pause subscriptions unsubscribe and destroy is idempotent', async () => {
 node --test packages/publisher-platform/test/standalone.test.js
 ```
 
-Expected: module-not-found failure.
-
-- [ ] **Step 3: Implement the contract and standalone adapter**
+- [ ] **Step 3: Implement the result and capability primitives**
 
 ```js
 export const NO_CAPABILITIES = Object.freeze({
@@ -270,7 +219,6 @@ export const NO_CAPABILITIES = Object.freeze({
   wallet: false,
   leaderboards: false,
 });
-
 export const ok = (value) => Object.freeze({ ok: true, value });
 export const failure = (code, message) => Object.freeze({
   ok: false,
@@ -278,9 +226,9 @@ export const failure = (code, message) => Object.freeze({
 });
 ```
 
-The standalone adapter implements every contract method. Unsupported optional capabilities return stable `UNSUPPORTED_CAPABILITY` failures. Lifecycle methods return `ok(undefined)`. Pause/resume test hooks are exported only from a separate test harness object and are never present in production builds.
+The standalone adapter implements every approved contract method. Lifecycle methods return `ok(undefined)`. Unsupported persistence, analytics, ads, wallet, and leaderboard calls return `UNSUPPORTED_CAPABILITY`. `destroy()` is idempotent and clears subscriptions.
 
-- [ ] **Step 4: Verify declarations and behavior**
+- [ ] **Step 4: Verify**
 
 ```bash
 node --test packages/publisher-platform/test/standalone.test.js
@@ -301,6 +249,7 @@ git commit -m "feat: add typed publisher platform boundary"
 **PR title:** `build: add Arkadium adapter snapshot verification`
 
 **Files:**
+- Create: `scripts/arkadium-snapshot-lib.mjs`
 - Create: `scripts/sync-arkadium-snapshot.mjs`
 - Create: `scripts/verify-arkadium-snapshot.mjs`
 - Create: `test/arkadium-snapshot.test.js`
@@ -309,18 +258,16 @@ git commit -m "feat: add typed publisher platform boundary"
 - Modify: `scripts/verify.mjs`
 
 **Interfaces:**
-- Consumes: a local checkout of `646826/arkadium-game-factory`.
-- Produces:
-  - `npm run arkadium:sync -- --source <path>`
-  - `npm run arkadium:verify-snapshot`
-  - `vendor/arkadium-platform/manifest.json` with schema version, source commit, SDK version and per-file SHA-256.
+- `npm run arkadium:sync -- --source ../arkadium-game-factory`
+- `npm run arkadium:verify-snapshot`
+- `syncSnapshot(options)` and `verifySnapshot(destination)`
 
-- [ ] **Step 1: Write failing snapshot tests with a temporary source repository**
+- [ ] **Step 1: Write the failing test**
 
 ```js
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { syncSnapshot, verifySnapshot } from '../scripts/arkadium-snapshot-lib.mjs';
@@ -331,8 +278,12 @@ test('snapshot records exact source commit and hashes', async () => {
   const destination = join(root, 'vendor');
   await mkdir(join(source, 'packages/platform-contract/src'), { recursive: true });
   await writeFile(join(source, 'packages/platform-contract/src/index.ts'), 'export const x = 1;\n');
-  await writeFile(join(source, '.snapshot-source-commit'), '0123456789abcdef0123456789abcdef01234567\n');
-  const manifest = await syncSnapshot({ source, destination, sourceCommitFile: '.snapshot-source-commit' });
+  const manifest = await syncSnapshot({
+    source,
+    destination,
+    sourceCommit: '0123456789abcdef0123456789abcdef01234567',
+    roots: ['packages/platform-contract/src'],
+  });
   assert.equal(manifest.sourceCommit, '0123456789abcdef0123456789abcdef01234567');
   assert.equal((await verifySnapshot(destination)).ok, true);
 });
@@ -344,9 +295,7 @@ test('snapshot records exact source commit and hashes', async () => {
 node --test test/arkadium-snapshot.test.js
 ```
 
-- [ ] **Step 3: Implement snapshot sync and verification**
-
-The sync command copies only allowlisted roots:
+- [ ] **Step 3: Implement allowlisted copying and hashing**
 
 ```js
 const SNAPSHOT_ROOTS = Object.freeze([
@@ -357,9 +306,9 @@ const SNAPSHOT_ROOTS = Object.freeze([
 ]);
 ```
 
-It obtains the source commit using `git -C <source> rev-parse HEAD`, rejects a dirty source checkout, normalizes paths, copies bytes, writes lowercase SHA-256 values, and records SDK version `2.66.2`. Verification recomputes every hash, rejects extra or missing files, and fails when the package dependency or SDK snapshot version differs.
+The CLI obtains the source commit with `git -C ../arkadium-game-factory rev-parse HEAD`, rejects a dirty source checkout, copies only the roots above, records lowercase SHA-256 values, and records SDK version `2.66.2`. Verification rejects missing, modified, or extra files and a package/manifest SDK mismatch.
 
-- [ ] **Step 4: Add scripts to the complete quality gate**
+- [ ] **Step 4: Wire commands into verification**
 
 ```json
 {
@@ -370,7 +319,7 @@ It obtains the source commit using `git -C <source> rev-parse HEAD`, rejects a d
 }
 ```
 
-`scripts/verify.mjs` invokes snapshot verification only when a committed manifest exists, allowing this tooling PR to land before the actual snapshot PR.
+`scripts/verify.mjs` runs snapshot verification only when `vendor/arkadium-platform/manifest.json` exists, so the tooling can merge before the snapshot.
 
 - [ ] **Step 5: Verify and merge**
 
@@ -379,88 +328,55 @@ node --test test/arkadium-snapshot.test.js
 npm run verify
 ```
 
-Commit:
-
-```bash
-git commit -am "build: add Arkadium adapter snapshot verification"
-```
-
 ---
 
-### Task 4: Import the Exact Reviewed Adapter Snapshot
+### Task 4: Import the Reviewed Adapter and Exact Dependency Lock
 
 **PR title:** `build: vendor reviewed Arkadium adapter snapshot`
 
 **Files:**
 - Create: `vendor/arkadium-platform/manifest.json`
-- Create: allowlisted files under `vendor/arkadium-platform/source/`
+- Create: files under `vendor/arkadium-platform/source/`
 - Create: `vendor/arkadium-platform/LICENSES.md`
 - Modify: `package.json`
-- Create or modify: `package-lock.json`
+- Create: `package-lock.json`
 - Modify: `.github/workflows/ci.yml`
 
-**Interfaces:**
-- Consumes: clean local `arkadium-game-factory` checkout and Task 3 commands.
-- Produces: immutable source snapshot and exact dependency lock.
-
-- [ ] **Step 1: Run the sync command against the reviewed factory checkout**
+- [ ] **Step 1: Synchronize from a clean factory checkout**
 
 ```bash
 npm run arkadium:sync -- --source ../arkadium-game-factory
 ```
 
-Expected manifest requirements:
+The command writes the actual `git rev-parse HEAD` commit and actual SHA-256 digests into the manifest. No commit or hash is hand-edited.
+
+- [ ] **Step 2: Pin and lock exact packages**
 
 ```json
 {
-  "schemaVersion": 1,
-  "sourceRepository": "646826/arkadium-game-factory",
-  "sourceCommit": "<computed 40-character commit>",
-  "sdkVersion": "2.66.2",
-  "files": { "source/...": "<computed sha256>" }
+  "dependencies": { "@arkadiuminc/sdk": "2.66.2" },
+  "devDependencies": { "typescript": "6.0.3", "vite": "8.1.5" }
 }
 ```
-
-The command writes actual values; no value is manually invented.
-
-- [ ] **Step 2: Pin dependencies and create the lock file**
-
-```json
-{
-  "dependencies": {
-    "@arkadiuminc/sdk": "2.66.2"
-  },
-  "devDependencies": {
-    "typescript": "6.0.3",
-    "vite": "8.1.5"
-  }
-}
-```
-
-Run:
 
 ```bash
 npm install --package-lock-only
 npm ci
 ```
 
-- [ ] **Step 3: Make CI install the exact lock**
-
-Insert after Node setup:
+- [ ] **Step 3: Update CI**
 
 ```yaml
 - name: Install exact dependencies
   run: npm ci
 ```
 
-- [ ] **Step 4: Verify the snapshot and full repository**
+- [ ] **Step 4: Verify**
 
 ```bash
 npm run arkadium:verify-snapshot
 npm run verify
 ```
-
-Expected: manifest hashes pass, exact SDK version matches, existing game remains unchanged, and CI uses the lock file.
 
 - [ ] **Step 5: Commit and merge**
 
@@ -480,21 +396,9 @@ git commit -m "build: vendor reviewed Arkadium adapter snapshot"
 - Create: `example/canyon-charms/test/session-controller.test.js`
 - Modify: `example/canyon-charms/src/platform/platform.js`
 
-**Interfaces:**
-- Consumes:
-  - `PublisherPlatform`.
-  - callbacks `{ setPaused, suspendAudio, resumeAudio, reportIntegrationError }`.
-- Produces `createGameSessionController(options)` with:
-  - `boot()`
-  - `startLevel(levelId)`
-  - `score(totalScore)`
-  - `pause(source)`
-  - `resume(source)`
-  - `endLevel(levelId, reason)`
-  - `destroy()`
-  - `phase`
+**Interface:** `createGameSessionController({ platform, setPaused, suspendAudio, resumeAudio, reportIntegrationError })` returning `boot`, `startLevel`, `score`, `pause`, `resume`, `endLevel`, `destroy`, and read-only `phase`.
 
-- [ ] **Step 1: Write failing lifecycle tests**
+- [ ] **Step 1: Write the failing lifecycle test**
 
 ```js
 import assert from 'node:assert/strict';
@@ -503,10 +407,14 @@ import { createGameSessionController } from '../src/session/controller.js';
 
 function recordingPlatform() {
   const calls = [];
+  const capabilities = Object.freeze({
+    persistence: false, analytics: false, interstitialAds: false,
+    rewardedAds: false, wallet: false, leaderboards: false,
+  });
   return {
     calls,
-    capabilities: Object.freeze({ persistence: false, analytics: false, interstitialAds: false, rewardedAds: false, wallet: false, leaderboards: false }),
-    initialize: async () => ({ ok: true, value: { userState: 'anonymous', locale: 'en-US', capabilities: this?.capabilities } }),
+    capabilities,
+    initialize: async () => ({ ok: true, value: { userState: 'anonymous', locale: 'en-US', capabilities } }),
     signalReady: async () => { calls.push('ready'); return { ok: true, value: undefined }; },
     signalGameStart: async () => { calls.push('game-start'); return { ok: true, value: undefined }; },
     signalLevelStart: async (id) => { calls.push(`level-start:${id}`); return { ok: true, value: undefined }; },
@@ -549,11 +457,11 @@ const PHASES = Object.freeze({
 });
 ```
 
-The controller serializes lifecycle operations through one promise chain, registers host pause/resume once, suppresses duplicate outgoing calls, rejects score regression, and makes `destroy()` idempotent. Initialization and ready failures are boot-critical in Arkadium modes but become stable redacted failures.
+Operations are serialized through one promise chain. Ready, game-start, level-start, level-end, and game-end are deduplicated. Scores never regress. Host pause/resume subscriptions are registered once. `destroy()` is idempotent. Publisher-mode initialization and ready failures are boot-critical and redacted.
 
-- [ ] **Step 4: Adapt the legacy standalone boundary**
+- [ ] **Step 4: Isolate legacy compatibility**
 
-`example/canyon-charms/src/platform/platform.js` exports a compatibility wrapper matching `PublisherPlatform`; guessed global discovery remains accessible only through an explicitly named `createLegacyCompatibilityPlatform()` and is not selected by publisher modes.
+`platform.js` exposes guessed-global behavior only as `createLegacyCompatibilityPlatform()`. Publisher modes cannot select it.
 
 - [ ] **Step 5: Verify and merge**
 
@@ -564,7 +472,7 @@ npm run verify
 
 ---
 
-### Task 6: Canonical Events and Controller Wiring
+### Task 6: Canonical Events and UI Wiring
 
 **PR title:** `feat: route Canyon Charms through canonical integration events`
 
@@ -574,60 +482,45 @@ npm run verify
 - Create: `packages/game-events/src/index.d.ts`
 - Create: `packages/game-events/test/events.test.js`
 - Modify: `example/canyon-charms/src/main.js`
-- Modify: `example/canyon-charms/test/game.test.js`
 - Modify: `.github/workflows/ci.yml`
 
 **Interfaces:**
-- Consumes game facts and ordered sinks.
-- Produces:
-  - `createCanonicalEventFactory(context)`
-  - `validateCanonicalEvent(event)`
-  - `createEventDispatcher(sinks)`
-  - immutable allowlisted event catalog.
+- `createCanonicalEventFactory({ now, createId })`
+- `validateCanonicalEvent(event)`
+- `createEventDispatcher(sinks)`
 
-- [ ] **Step 1: Write failing event-schema tests**
+- [ ] **Step 1: Write failing schema tests**
 
 ```js
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createCanonicalEventFactory, validateCanonicalEvent } from '../src/catalog.js';
 
-test('canonical events receive ordered sequence and primitive properties', () => {
-  const createEvent = createCanonicalEventFactory({ now: () => '2026-08-09T20:00:00.000Z' });
+test('events have ordered sequence and reviewed properties', () => {
+  const createEvent = createCanonicalEventFactory({
+    now: () => '2026-08-09T20:00:00.000Z',
+    createId: () => '11111111-2222-4333-8444-555555555555',
+  });
   const first = createEvent('game_start', { levelId: '1' });
   const second = createEvent('move_accepted', { scoreDelta: 240, combo: 1 });
   assert.equal(first.sequence, 1);
   assert.equal(second.sequence, 2);
   assert.equal(validateCanonicalEvent(second).name, 'move_accepted');
-});
-
-test('sensitive and unknown properties fail closed', () => {
-  const createEvent = createCanonicalEventFactory();
   assert.throws(() => createEvent('game_start', { token: 'secret' }), /property/);
-  assert.throws(() => createEvent('unknown_event', {}), /event/);
 });
 ```
 
-- [ ] **Step 2: Implement the initial event catalog**
+- [ ] **Step 2: Implement the allowlisted catalog**
 
-Catalog entries define exact properties and sink routing for:
-
-```text
-sdk_initialize_started sdk_initialize_succeeded sdk_ready game_start level_start
-move_rejected move_accepted score_changed pause resume level_end game_end
-save_load save_write ad_request ad_result leaderboard_submit wallet_balance
-wallet_consume_result integration_error
-```
-
-Only primitive property values are accepted. String length, integer bounds, non-finite numbers, unknown fields and recursive sensitive-name patterns fail before dispatch.
+Include the exact names approved in the design. Each entry defines permitted primitive properties, bounds, Arkadium routing, Game Eye routing, PROD permission, and sampling permission. Unknown events, sensitive property names, oversized strings, and non-finite numbers fail before dispatch.
 
 - [ ] **Step 3: Wire `main.js` through the controller**
 
-Direct calls such as `platform.started()`, `platform.submitScore()` and `platform.completed()` are removed. The UI invokes the controller, and the controller publishes one canonical event per accepted game fact. Rendering and deterministic game-state transitions remain unchanged.
+Remove direct calls to `started`, `submitScore`, `completed`, and free-form `track`. UI actions call the session controller; controller/game facts produce one canonical event each. Rendering and deterministic state transitions remain unchanged.
 
 - [ ] **Step 4: Extend Chrome evidence**
 
-CI verifies the title state, starts a deterministic game through a query-controlled test route, and asserts that the integration diagnostics DOM contains an ordered lifecycle prefix without exposing payload values.
+CI boots a deterministic test route and asserts an ordered structural lifecycle prefix without storing payload values.
 
 - [ ] **Step 5: Verify and merge**
 
@@ -646,31 +539,24 @@ npm run verify
 - Create: `example/canyon-charms/vite.config.ts`
 - Create: `example/canyon-charms/src/platform/runtime-platform.js`
 - Create: `example/canyon-charms/src/platform/official-platform.ts`
-- Create: `example/canyon-charms/test/official-platform.test.js`
+- Create: `example/canyon-charms/test/official-platform.test.ts`
 - Create: `scripts/build-arkadium-candidate.mjs`
 - Modify: `example/canyon-charms/index.html`
 - Modify: `package.json`
 - Modify: `scripts/verify.mjs`
 - Modify: `.github/workflows/ci.yml`
 
-**Interfaces:**
-- Consumes validated `PublicRuntimeManifest` and the vendored factory adapter.
-- Produces:
-  - `createRuntimePlatform(manifest)`.
-  - `npm run build:arkadium -- --config <manifest.json>`.
-  - `release/canyon-charms-arkadium-sandbox.zip`.
+- [ ] **Step 1: Write the failing injected-loader test**
 
-- [ ] **Step 1: Write failing injected-loader tests**
-
-```js
+```ts
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createOfficialPlatform } from '../src/platform/official-platform.ts';
 
-test('official platform rejects runtime SDK version drift', async () => {
+test('runtime SDK version drift fails with a redacted error', async () => {
   const platform = createOfficialPlatform({
     manifest: validSandboxManifest,
-    loadSdk: async () => ({ version: '9.9.9' }),
+    loadSdk: async () => ({ version: '9.9.9' } as never),
   });
   const result = await platform.initialize();
   assert.equal(result.ok, false);
@@ -679,10 +565,8 @@ test('official platform rejects runtime SDK version drift', async () => {
 });
 ```
 
-Run with Node type stripping:
-
 ```bash
-node --experimental-strip-types --test example/canyon-charms/test/official-platform.test.js
+node --experimental-strip-types --test example/canyon-charms/test/official-platform.test.ts
 ```
 
 - [ ] **Step 2: Implement explicit mode selection**
@@ -695,28 +579,21 @@ export async function createRuntimePlatform(manifest) {
 }
 ```
 
-Publisher modes never fall back to standalone on load or initialization failure.
+Publisher modes never fall back to standalone after load or initialization failure.
 
-- [ ] **Step 3: Bundle with Vite using exact versions**
+- [ ] **Step 3: Add the Vite candidate build**
 
-The Vite config uses `root: example/canyon-charms`, writes to an isolated candidate directory, disables source maps, and injects the validated runtime manifest as a generated asset. The bundle imports `@arkadiuminc/sdk` only from its package root through the reviewed loader. No remote CDN dependency is allowed.
+Vite uses root `example/canyon-charms`, writes to `example/canyon-charms/arkadium-dist`, disables source maps, and emits the validated runtime manifest. The official package is imported only from `@arkadiuminc/sdk`. No CDN runtime dependency is permitted.
 
-- [ ] **Step 4: Add candidate build verification**
+- [ ] **Step 4: Add verification**
 
 ```bash
 npm run build:arkadium -- --config config/runtime.sandbox.example.json
 ```
 
-The verifier checks:
+Verify exact SDK inventory, no source maps, no secrets, no bare output imports, no placeholder DEV/PROD IDs, and successful headless-Chrome boot with an injected Arena boundary.
 
-- exact SDK version `2.66.2` in manifest and bundle inventory;
-- no source maps;
-- no credentials or placeholder DEV/PROD identifiers;
-- no bare module specifiers in output;
-- no runtime network dependency except configured Arkadium and Game Eye endpoints;
-- successful Chrome boot in a test host that exercises real bundled SDK loading with an injected Arena boundary.
-
-- [ ] **Step 5: Keep standalone output working**
+- [ ] **Step 5: Verify both build tracks**
 
 ```bash
 npm run build -- --project example/canyon-charms
@@ -745,20 +622,14 @@ git commit -m "feat: build Canyon Charms with the official Arkadium SDK"
 - Modify: `example/canyon-charms/index.html`
 - Modify: `example/canyon-charms/src/main.js`
 
-**Interfaces:**
-- Consumes validated canonical events and public runtime context.
-- Produces:
-  - `createGameEyeSink(options)`.
-  - `createIntegrationDebugPanel(options)` for non-PROD builds.
-
-- [ ] **Step 1: Write failing bounded-delivery tests**
+- [ ] **Step 1: Write the failing bounded-delivery test**
 
 ```js
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createGameEyeSink } from '../src/game-eye-sink.js';
 
-test('sink batches at most 32 events and retries a bounded number of times', async () => {
+test('sink batches at most 32 events and retries twice', async () => {
   const requests = [];
   const sink = createGameEyeSink({
     endpoint: 'http://127.0.0.1:3001/v1/game-events',
@@ -769,102 +640,75 @@ test('sink batches at most 32 events and retries a bounded number of times', asy
     },
     retryDelaysMs: [0, 0],
   });
-  for (let index = 0; index < 40; index += 1) await sink.enqueue(event(index + 1));
+  for (let index = 1; index <= 40; index += 1) await sink.enqueue(event(index));
   await sink.flush();
   assert.equal(requests.every((request) => request.events.length <= 32), true);
   assert.equal(requests.length <= 3, true);
 });
 ```
 
-- [ ] **Step 2: Implement the exact browser envelope**
+- [ ] **Step 2: Implement the exact envelope**
 
-The sink creates schema `ark.game-events.v1`, UUID-v4 session and event identifiers, ordered sequences, exact build and SDK versions, and a 1..32 event batch. Queue size is bounded, retries are bounded, unload uses `sendBeacon` only for already validated payloads, and delivery failure never changes score or game state.
+Use schema `ark.game-events.v1`, UUID-v4 session/event IDs, ordered sequences, exact build and SDK versions, and batches of 1..32. Queue length and retries are bounded. Unload uses `sendBeacon` only for already validated payloads. Delivery failure never changes game rules, score, or save state.
 
-- [ ] **Step 3: Add safe debug panel**
+- [ ] **Step 3: Add the non-PROD debug panel**
 
-The panel is available only when `mode !== 'arkadium-prod'` and `integrationDebug=1`. It shows build SHA, game version, platform mode, exact SDK version, capability flags, lifecycle call names, queue count, and the last redacted delivery status. It never renders credentials, profiles, save content, App Insights identifiers, cookies, raw request IDs, or wallet transaction IDs.
+With `integrationDebug=1`, show build SHA, game version, platform mode, SDK version, capabilities, lifecycle call names, queue count, and the last redacted delivery result. Never show credentials, profiles, saves, App Insights IDs, cookies, raw request IDs, or wallet transaction IDs. PROD does not include the panel.
 
-- [ ] **Step 4: Verify browser behavior and merge**
+- [ ] **Step 4: Verify and merge**
 
 ```bash
 node --test packages/game-events/test/game-eye-sink.test.js
 npm run verify
 ```
 
-Chrome evidence must show the panel when requested and prove it is absent in a PROD candidate.
-
 ---
 
-### Task 9: Official Sandbox Candidate and Evidence Gate
+### Task 9: Official Sandbox Evidence Gate
 
 **PR title:** `ci: add official Arkadium Sandbox evidence gate`
 
 **Files:**
 - Create: `.github/workflows/arkadium-sandbox.yml`
+- Create: `scripts/arkadium-sandbox-evidence-lib.mjs`
 - Create: `scripts/verify-arkadium-sandbox-evidence.mjs`
 - Create: `test/arkadium-sandbox-evidence.test.js`
 - Create: `docs/ARKADIUM_SANDBOX_RUNBOOK.md`
-- Modify: `scripts/verify.mjs`
 - Modify: `docs/ARKADIUM_CHECKLIST.md`
 
-**Interfaces:**
-- Consumes immutable Sandbox candidate URL and official Sandbox browser evidence.
-- Produces:
-  - `npm run verify:arkadium-sandbox-evidence -- --evidence <path>`.
-  - build-bound `evidence/sandbox-status.json`, `evidence/sandbox-events.json`, `evidence/rpc-diagnostics.json`, screenshots and console log.
-
-- [ ] **Step 1: Write failing evidence-verifier tests**
+- [ ] **Step 1: Write the failing evidence test**
 
 ```js
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { verifySandboxEvidence } from '../scripts/arkadium-sandbox-evidence-lib.mjs';
 
+const SHA = '709a1556fda3fa7a1506d46ec704cc654308775b';
+
 test('evidence requires exact build, SDK and lifecycle ordering', () => {
   const report = verifySandboxEvidence({
-    buildSha: '709a1556fda3fa7a1506d46ec704cc654308775b',
+    buildSha: SHA,
     sdkVersion: '2.66.2',
     observedCalls: ['ready', 'gameStart', 'levelStart:1', 'score:240', 'levelEnd:1', 'gameEnd'],
     hostPauseObserved: true,
     hostResumeObserved: true,
     bootErrorVisible: false,
-  }, {
-    expectedBuildSha: '709a1556fda3fa7a1506d46ec704cc654308775b',
-    expectedSdkVersion: '2.66.2',
-  });
+  }, { expectedBuildSha: SHA, expectedSdkVersion: '2.66.2' });
   assert.equal(report.ok, true);
 });
 ```
 
 - [ ] **Step 2: Implement fail-closed evidence validation**
 
-The verifier rejects stale timestamps, another build SHA, another SDK version, missing ready/start/end calls, duplicate game start/end, score regression, absent host pause/resume, visible boot error, unknown operations, raw payload values, and sensitive field names.
+Reject another build SHA, another SDK version, stale timestamps, missing or duplicate lifecycle calls, score regression, absent host pause/resume, visible boot errors, unknown operations, raw payload values, and sensitive field names.
 
 - [ ] **Step 3: Add a protected manual Sandbox workflow**
 
-The workflow:
-
-1. checks out the exact commit;
-2. runs `npm ci` and `npm run verify`;
-3. builds the exact Sandbox candidate;
-4. deploys it to an immutable preview URL;
-5. opens the official Arkadium Sandbox in Chrome using the documented runbook;
-6. records lifecycle indicators, host pause/resume, browser console and screenshots;
-7. runs the evidence verifier;
-8. uploads the evidence bundle.
-
-When official Sandbox UI automation cannot proceed because of an upstream UI change, the job fails rather than emitting synthetic success. A manual artifact upload path is permitted only when the same verifier binds evidence to the exact workflow candidate.
+The workflow runs `npm ci`, `npm run verify`, builds the exact candidate, publishes an immutable preview, opens the official Sandbox in headless Chrome, captures lifecycle indicators and host pause/resume, verifies evidence, and uploads screenshots, console log, `sandbox-status.json`, `sandbox-events.json`, and `rpc-diagnostics.json`. An upstream Sandbox UI change causes a failed job rather than synthetic success.
 
 - [ ] **Step 4: Update release truth**
 
-`docs/ARKADIUM_CHECKLIST.md` distinguishes:
-
-```text
-contract-ready       Tasks 1-8 and normal CI pass
-sandbox-verified     current Task 9 evidence passes
-arkadium-dev-ready   protected DEV workflow passes later
-production-approved  Arkadium publisher approval exists
-```
+Document four distinct states: `contract-ready`, `sandbox-verified`, `arkadium-dev-ready`, and `production-approved`.
 
 - [ ] **Step 5: Verify and merge**
 
@@ -877,8 +721,8 @@ npm run verify
 
 ## Plan Self-Review
 
-- **Spec coverage:** runtime modes, exact SDK, snapshot provenance, typed platform boundary, exactly-once lifecycle, canonical events, Game Eye client, diagnostics, Sandbox evidence and release truth are each assigned to a task.
-- **Intentionally deferred:** Ark Eye `/v1/game-events`, JetStream writer and ClickHouse schema belong to Workstream B; cross-repository Docker Compose and protected Arkadium DEV belong to Workstream C.
-- **Placeholders:** no implementation step depends on fabricated credentials or identifiers. Computed source commits and hashes are produced by commands, not manually substituted.
-- **Type consistency:** `PublicRuntimeManifest`, `PublisherPlatform`, canonical event names and SDK version `2.66.2` match the approved design.
-- **Merge strategy:** every task is independently useful, keeps `main` playable, and ends with `npm run verify` plus its focused tests before squash merge.
+- **Spec coverage:** runtime modes, exact SDK, snapshot provenance, typed platform boundary, exactly-once lifecycle, canonical events, Game Eye client, diagnostics, Sandbox evidence, and release truth each have an implementation task.
+- **Intentionally deferred:** Ark Eye `/v1/game-events`, JetStream writer, and ClickHouse schema are Workstream B. Cross-repository Docker Compose and protected Arkadium DEV are Workstream C.
+- **Placeholder scan:** no implementation step uses fabricated credentials, identifiers, commits, or hashes. Commands compute snapshot provenance and digests from real repositories.
+- **Type consistency:** `PublicRuntimeManifest`, `PublisherPlatform`, canonical event names, and SDK version `2.66.2` match the approved design.
+- **Merge strategy:** every task is independently useful, leaves `main` playable, and ends with focused tests plus `npm run verify` before squash merge.
