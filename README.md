@@ -33,6 +33,28 @@ The preview is pinned to an exact merged commit. GitHub Actions checks its HTML,
 | canonical GitHub Pages URL | requires the one-time repository setting documented in [`docs/CANYON_CHARMS_DELIVERY.md`](docs/CANYON_CHARMS_DELIVERY.md) |
 | Arkadium production publication | requires external Sandbox access, identifiers, credentials, review, and approval |
 
+## Arkadium runtime configuration
+
+Publisher integration is selected explicitly through one public manifest. The validator supports four modes:
+
+```text
+standalone
+arkadium-sandbox
+arkadium-dev
+arkadium-prod
+```
+
+Start from one of the committed public examples:
+
+```text
+config/runtime.standalone.json
+config/runtime.sandbox.example.json
+```
+
+The validator rejects unknown fields, accessors, symbol keys, invalid mode combinations, unsafe telemetry URLs, malformed build identifiers, and placeholder DEV or PROD identifiers. Credentials and DEV login values are never accepted as manifest fields and therefore cannot be copied into the browser bundle accidentally.
+
+`arkadium-sandbox` uses the official DEV environment and Console analytics. Real assigned game IDs, App Insights configuration, DEV credentials, and production endpoints are added later through protected deployment configuration; they are not fabricated in source control.
+
 ## Five-minute start
 
 Requirements: Node.js 22 or newer. No package installation is required.
@@ -64,6 +86,8 @@ npm run serve -- games/my-game 4173
 ```text
 template/browser-game/       reusable dependency-free starter
 example/canyon-charms/       complete original match-3 game
+packages/                    reusable integration contracts and validators
+config/                      public runtime configuration examples
 scripts/                     create, check, build, package, serve and verify commands
 swarmforge/                  local roles, constitution and topology
 docs/                        architecture, QA, classroom and publishing guides
