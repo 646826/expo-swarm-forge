@@ -47,7 +47,8 @@ jobs:
             tr -d '\r' < "$headers" > "${headers}.normalized"
             if ! grep -Eiq "^content-type:[[:space:]]*${content_type_pattern}" \
               "${headers}.normalized"; then
-              printf 'Unexpected Content-Type for %s/%s\n' "$base" "$relative_path" >&2
+              printf 'provider=%s asset=%s status=invalid-content-type\n' \
+                "$provider" "$relative_path" >&2
               cat "${headers}.normalized" >&2
               return 1
             fi
@@ -59,17 +60,17 @@ jobs:
             local base="$2"
             printf 'Checking provider=%s base=%s\n' "$name" "$base"
 
-            verify_asset "$name" "$base" index.html 'text/html'
-            grep -F '<title>Canyon Charms</title>' "$tmp/${name}_index.html"
-            grep -F './styles.css' "$tmp/${name}_index.html"
-            grep -F './src/main.js' "$tmp/${name}_index.html"
+            verify_asset "$name" "$base" index.html 'text/html' || return 1
+            grep -F '<title>Canyon Charms</title>' "$tmp/${name}_index.html" || return 1
+            grep -F './styles.css' "$tmp/${name}_index.html" || return 1
+            grep -F './src/main.js' "$tmp/${name}_index.html" || return 1
 
-            verify_asset "$name" "$base" styles.css 'text/css'
-            verify_asset "$name" "$base" src/main.js '(text|application)/(javascript|ecmascript)'
-            verify_asset "$name" "$base" src/core/random.js '(text|application)/(javascript|ecmascript)'
-            verify_asset "$name" "$base" src/core/board.js '(text|application)/(javascript|ecmascript)'
-            verify_asset "$name" "$base" src/core/game-state.js '(text|application)/(javascript|ecmascript)'
-            verify_asset "$name" "$base" src/platform/platform.js '(text|application)/(javascript|ecmascript)'
+            verify_asset "$name" "$base" styles.css 'text/css' || return 1
+            verify_asset "$name" "$base" src/main.js '(text|application)/(javascript|ecmascript)' || return 1
+            verify_asset "$name" "$base" src/core/random.js '(text|application)/(javascript|ecmascript)' || return 1
+            verify_asset "$name" "$base" src/core/board.js '(text|application)/(javascript|ecmascript)' || return 1
+            verify_asset "$name" "$base" src/core/game-state.js '(text|application)/(javascript|ecmascript)' || return 1
+            verify_asset "$name" "$base" src/platform/platform.js '(text|application)/(javascript|ecmascript)' || return 1
             printf 'provider=%s status=ok\n' "$name"
           }
 
@@ -141,6 +142,7 @@ jobs:
           printf '### Verified live preview\n\n%s\n' "$PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload browser evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: canyon-charms-public-preview-${{ github.sha }}
@@ -148,5 +150,5 @@ jobs:
             ${{ runner.temp }}/canyon-preview.png
             ${{ runner.temp }}/canyon-preview-dom.html
             ${{ runner.temp }}/canyon-preview-chrome.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
