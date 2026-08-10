@@ -46,7 +46,12 @@ function callable(target, names) {
   return null;
 }
 
-export function createPublisherPlatform(host = globalThis) {
+/**
+ * Legacy standalone compatibility for historical hosts that inject an
+ * untyped global object. Arkadium publisher modes must never select this
+ * adapter; they use the exact official SDK adapter in a later runtime layer.
+ */
+export function createLegacyCompatibilityPlatform(host = globalThis) {
   const queued = [];
   const MAX_QUEUE = 32;
   let adapter = null;
@@ -110,3 +115,7 @@ export function createPublisherPlatform(host = globalThis) {
     diagnostics: () => Object.freeze({ connected: ready, queued: queued.length }),
   });
 }
+
+// Temporary source-compatible alias for the current standalone UI. Task 6
+// removes direct UI use when the typed runtime platform is wired in.
+export const createPublisherPlatform = createLegacyCompatibilityPlatform;
