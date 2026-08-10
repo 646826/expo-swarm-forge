@@ -34,7 +34,7 @@ test('UI publishes only structural integration evidence into the DOM', async () 
 });
 
 test('Chrome CI requires a ready integration runtime before accepting the build', async () => {
-  const workflow = await read('../../../.github/workflows/ci.yml');
+  const workflow = await read('../../.github/workflows/ci.yml');
   assert.match(workflow, /data-integration-phase="ready"/);
   assert.match(workflow, /data-integration-last-event="sdk_ready"/);
   assert.match(workflow, /data-integration-event-count="3"/);
