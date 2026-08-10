@@ -147,7 +147,6 @@ jobs:
             '- Source export artifact: `9042779900`',
             '- Source archive SHA-256: `31c29a8f99b7157469684776bb6196b8b542a87dba502a5f22c0c10f943ed38e`',
             '- Reviewed snapshot archive SHA-256: `b3d853e2b9cfe94d435473f0197ff217caa8088af7af5cf8024ab31ae30db300`',
-            '',
           );
           writeFileSync('vendor/arkadium-platform/LICENSES.md', `${lines.join('\n')}\n`);
           NODE
