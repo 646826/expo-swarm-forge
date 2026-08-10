@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SLUG = /^[a-z][a-z0-9-]{1,39}$/;
+const BROWSER_SHARED_ROOT = /^packages\/[a-z][a-z0-9-]{1,63}\/src$/;
+const MAX_BROWSER_SHARED_ROOTS = 16;
 
 export function safeSlug(value) {
   const slug = String(value ?? '');
@@ -18,6 +20,23 @@ export function replaceTokens(value, { title, slug }) {
   return value.replaceAll('__GAME_TITLE__', title).replaceAll('__GAME_SLUG__', slug);
 }
 
+function normalizeBrowserSharedRoots(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_BROWSER_SHARED_ROOTS) {
+    throw new TypeError('Invalid shared browser module roots');
+  }
+  const roots = value.map((item) => String(item));
+  if (new Set(roots).size !== roots.length) {
+    throw new TypeError('Invalid shared browser module roots: duplicates are forbidden');
+  }
+  for (const root of roots) {
+    if (!BROWSER_SHARED_ROOT.test(root) || root.includes('..') || root.startsWith('/')) {
+      throw new TypeError('Invalid shared browser module root');
+    }
+  }
+  return roots;
+}
+
 export function validateProjectConfig(input) {
   if (!input || typeof input !== 'object') throw new TypeError('Project config must be an object');
   const config = {
@@ -27,6 +46,8 @@ export function validateProjectConfig(input) {
     output: String(input.output ?? ''),
     buildBudgetBytes: Number(input.buildBudgetBytes),
   };
+  const browserSharedRoots = normalizeBrowserSharedRoots(input.browserSharedRoots);
+  if (browserSharedRoots.length > 0) config.browserSharedRoots = browserSharedRoots;
   if (!config.title || !/^[A-Za-z0-9._ -]+$/.test(config.entry) || config.entry.includes('..')) throw new TypeError('Invalid project title or entry');
   if (!/^[A-Za-z0-9._/-]+$/.test(config.output) || config.output.startsWith('/') || config.output.includes('..')) throw new TypeError('Invalid project output');
   if (!Number.isInteger(config.buildBudgetBytes) || config.buildBudgetBytes < 1024 || config.buildBudgetBytes > 10_000_000) throw new RangeError('Invalid build budget');
@@ -94,27 +115,57 @@ export async function copyStarter(source, destination, tokens) {
 
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
+async function browserBuildFiles(projectDir, config) {
+  const files = [];
+  const localFiles = (await walkFiles(projectDir)).filter((file) => {
+    const rel = relative(projectDir, file);
+    return !rel.startsWith(`${config.output}${sep}`) && !rel.startsWith(`test${sep}`) && rel !== 'game.config.json';
+  });
+  for (const sourceFile of localFiles) {
+    files.push({ sourceFile, outputPath: relative(projectDir, sourceFile) });
+  }
+
+  for (const configuredRoot of config.browserSharedRoots ?? []) {
+    const sourceRoot = resolve(ROOT, ...configuredRoot.split('/'));
+    assertInside(ROOT, sourceRoot);
+    if (!(await pathExists(sourceRoot))) {
+      throw new Error(`Missing shared browser module root: ${configuredRoot}`);
+    }
+    for (const sourceFile of await walkFiles(sourceRoot)) {
+      files.push({
+        sourceFile,
+        outputPath: join(...configuredRoot.split('/'), relative(sourceRoot, sourceFile)),
+      });
+    }
+  }
+
+  files.sort((left, right) => left.outputPath.localeCompare(right.outputPath, 'en'));
+  const seen = new Set();
+  for (const file of files) {
+    const key = file.outputPath.replaceAll(sep, '/');
+    if (seen.has(key)) throw new Error(`Duplicate browser build path: ${key}`);
+    seen.add(key);
+  }
+  return files;
+}
+
 export async function buildProject(projectDir) {
   const config = await readProjectConfig(projectDir);
   const outputDir = join(projectDir, config.output);
   assertInside(projectDir, outputDir);
   await rm(outputDir, { recursive: true, force: true });
   await mkdir(outputDir, { recursive: true });
-  const sourceFiles = (await walkFiles(projectDir)).filter((file) => {
-    const rel = relative(projectDir, file);
-    return !rel.startsWith(`${config.output}${sep}`) && !rel.startsWith(`test${sep}`) && rel !== 'game.config.json';
-  });
+  const sourceFiles = await browserBuildFiles(projectDir, config);
   const report = [];
   let totalBytes = 0;
-  for (const sourceFile of sourceFiles) {
-    const rel = relative(projectDir, sourceFile);
-    const destination = join(outputDir, rel);
+  for (const { sourceFile, outputPath } of sourceFiles) {
+    const destination = join(outputDir, outputPath);
     assertInside(outputDir, destination);
     await mkdir(dirname(destination), { recursive: true });
     const bytes = await readFile(sourceFile);
     await writeFile(destination, bytes);
     totalBytes += bytes.length;
-    report.push({ path: rel.replaceAll(sep, '/'), bytes: bytes.length, sha256: hash(bytes) });
+    report.push({ path: outputPath.replaceAll(sep, '/'), bytes: bytes.length, sha256: hash(bytes) });
   }
   if (!(await pathExists(join(outputDir, config.entry)))) throw new Error(`Missing entrypoint: ${config.entry}`);
   if (totalBytes > config.buildBudgetBytes) throw new Error(`Build budget exceeded: ${totalBytes} > ${config.buildBudgetBytes}`);
