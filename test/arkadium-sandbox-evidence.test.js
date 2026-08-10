@@ -314,11 +314,12 @@ test('directory verification requires all three exact JSON files and writes no s
 });
 
 test('manual workflow is protected, exact-build, Chrome-backed and fail-closed', async () => {
-  const [workflow, runbook, checklist, runtime, vite, collector] = await Promise.all([
+  const [workflow, runbook, checklist, runtime, evidenceApi, vite, collector] = await Promise.all([
     readFile(new URL('../.github/workflows/arkadium-sandbox.yml', import.meta.url), 'utf8'),
     readFile(new URL('../docs/ARKADIUM_SANDBOX_RUNBOOK.md', import.meta.url), 'utf8'),
     readFile(new URL('../docs/ARKADIUM_CHECKLIST.md', import.meta.url), 'utf8'),
     readFile(new URL('../example/canyon-charms/src/integration/runtime.js', import.meta.url), 'utf8'),
+    readFile(new URL('../example/canyon-charms/src/integration/sandbox-evidence.js', import.meta.url), 'utf8'),
     readFile(new URL('../example/canyon-charms/vite.config.ts', import.meta.url), 'utf8'),
     readFile(new URL('../scripts/capture-arkadium-sandbox-evidence.mjs', import.meta.url), 'utf8'),
   ]);
@@ -349,8 +350,9 @@ test('manual workflow is protected, exact-build, Chrome-backed and fail-closed',
   assert.match(checklist, /Current release state:\s*`contract-ready`/);
   assert.match(checklist, /does not claim Sandbox verification/i);
 
-  assert.match(runtime, /__CANYON_SANDBOX_EVIDENCE__/);
-  assert.match(runtime, /official-arkadium-sandbox/);
+  assert.match(runtime, /installSandboxEvidenceApi/);
+  assert.match(evidenceApi, /__CANYON_SANDBOX_EVIDENCE__/);
+  assert.match(evidenceApi, /official-arkadium-sandbox/);
   assert.match(vite, /__CANYON_SANDBOX_DRIVER__/);
   assert.match(vite, /sandboxEvidence/);
   assert.match(vite, /findHint\(game\)/);
