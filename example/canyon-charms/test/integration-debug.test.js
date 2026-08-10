@@ -181,10 +181,11 @@ test('production mode never mounts the debug panel', () => {
 });
 
 test('candidate runtime wires Game Eye and the debug panel without changing standalone main', async () => {
-  const [runtimeSource, html, mainSource] = await Promise.all([
+  const [runtimeSource, html, mainSource, workflowSource] = await Promise.all([
     readFile(new URL('../src/integration/runtime.js', import.meta.url), 'utf8'),
     readFile(new URL('../index.html', import.meta.url), 'utf8'),
     readFile(new URL('../src/main.js', import.meta.url), 'utf8'),
+    readFile(new URL('../../../.github/workflows/ci.yml', import.meta.url), 'utf8'),
   ]);
 
   assert.match(runtimeSource, /createGameEyeSink/);
@@ -194,4 +195,8 @@ test('candidate runtime wires Game Eye and the debug panel without changing stan
   assert.match(runtimeSource, /flushOnUnload|destroy/);
   assert.match(html, /integration-debug\.css/);
   assert.doesNotMatch(mainSource, /gameEyeEndpoint|sendBeacon|integrationDebug/);
+  assert.match(workflowSource, /integrationDebug=1/);
+  assert.match(workflowSource, /data-role=\\?"integration-debug\\?"/);
+  assert.match(workflowSource, /Game Eye queue/);
+  assert.match(workflowSource, /doesNotMatch\(debugPanel/);
 });
