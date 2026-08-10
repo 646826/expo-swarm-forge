@@ -48,8 +48,27 @@ jobs:
       - name: Run complete repository verification
         run: npm run verify
 
+      - name: Write telemetry-free official Sandbox runtime config
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const { readFileSync, writeFileSync } = require('node:fs');
+          const config = JSON.parse(readFileSync('config/runtime.sandbox.example.json', 'utf8'));
+          const officialConfig = {
+            ...config,
+            gameEyeEndpoint: null,
+            buildSha: process.env.CANDIDATE_SHA,
+          };
+          writeFileSync(
+            'runtime.sandbox.official.json',
+            `${JSON.stringify(officialConfig, null, 2)}\n`,
+            'utf8',
+          );
+          NODE
+
       - name: Rebuild exact Arkadium candidate
-        run: npm run build:arkadium -- --build-sha "$CANDIDATE_SHA"
+        run: npm run build:arkadium -- --config runtime.sandbox.official.json --build-sha "$CANDIDATE_SHA"
 
       - name: Assemble SHA-addressed Pages preview
         shell: bash
@@ -70,6 +89,7 @@ jobs:
           const report = JSON.parse(readFileSync(`${root}/candidate-report.json`, 'utf8'));
           assert.equal(manifest.mode, 'arkadium-sandbox');
           assert.equal(manifest.arkadiumEnvironment, 'DEV');
+          assert.equal(manifest.gameEyeEndpoint, null);
           assert.equal(manifest.buildSha, process.env.CANDIDATE_SHA);
           assert.equal(report.buildSha, process.env.CANDIDATE_SHA);
           assert.equal(report.sdkVersion, '2.66.2');
@@ -119,7 +139,7 @@ jobs:
           fetch-depth: 1
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288ca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
 
@@ -142,6 +162,7 @@ jobs:
           const assert = require('node:assert/strict');
           const manifest = JSON.parse(readFileSync(process.env.RUNNER_TEMP + '/runtime-manifest.json', 'utf8'));
           assert.equal(manifest.mode, 'arkadium-sandbox');
+          assert.equal(manifest.gameEyeEndpoint, null);
           assert.equal(manifest.buildSha, process.env.CANDIDATE_SHA);
           NODE
 
