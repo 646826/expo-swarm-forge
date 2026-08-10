@@ -3,5 +3,9 @@
   "title": "Canyon Charms",
   "entry": "index.html",
   "output": "dist",
-  "buildBudgetBytes": 750000
+  "buildBudgetBytes": 750000,
+  "browserSharedRoots": [
+    "packages/game-events/src",
+    "packages/publisher-platform/src"
+  ]
 }
