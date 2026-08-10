@@ -34,6 +34,15 @@ steps.push(
     args: ['scripts/package.mjs', '--project', 'example/canyon-charms'],
   },
   {
+    name: 'exact Arkadium candidate bundle',
+    command: process.execPath,
+    args: [
+      'scripts/build-arkadium-candidate.mjs',
+      '--config',
+      'config/runtime.sandbox.example.json',
+    ],
+  },
+  {
     name: 'Russian student handbook',
     command: process.execPath,
     args: [
@@ -58,4 +67,4 @@ for (const step of steps) {
   }
 }
 
-console.log('\nVerification complete: tests, checks, builds, packages, handbook, and any committed integration snapshots passed.');
+console.log('\nVerification complete: tests, checks, standalone packages, exact Arkadium candidate, handbook, and committed integration snapshots passed.');
