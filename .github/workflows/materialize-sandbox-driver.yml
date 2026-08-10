@@ -1,0 +1,114 @@
+name: Materialize Sandbox browser driver
+
+on:
+  push:
+    branches:
+      - ci/arkadium-sandbox-evidence
+    paths:
+      - .github/workflows/materialize-sandbox-driver.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ci/arkadium-sandbox-evidence
+          fetch-depth: 0
+      - name: Add the bounded non-PROD driver
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('example/canyon-charms/src/main.js')
+          source = path.read_text(encoding='utf-8')
+          marker = 'async function boot() {'
+          block = r'''let sandboxDriver = null;
+
+function installSandboxDriver() {
+  const runtimeManifest = globalThis.__CANYON_RUNTIME_MANIFEST__ ?? null;
+  const sandboxEvidence = new URLSearchParams(location.search).get('sandboxEvidence') === '1';
+  if (!sandboxEvidence
+    || !runtimeManifest
+    || runtimeManifest.mode === 'arkadium-prod'
+    || runtimeManifest.mode !== 'arkadium-sandbox'
+    || Object.prototype.hasOwnProperty.call(globalThis, '__CANYON_SANDBOX_DRIVER__')) {
+    return null;
+  }
+
+  function pointFor(index) {
+    if (!layout) return null;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const center = cellCenter(index);
+    return Object.freeze({
+      x: rect.left + center.x * (rect.width / layout.width),
+      y: rect.top + center.y * (rect.height / layout.height),
+    });
+  }
+
+  const api = Object.freeze({
+    snapshot() {
+      return Object.freeze({
+        mode,
+        status: game.status,
+        score: game.score,
+        moves: game.moves,
+      });
+    },
+    nextMove() {
+      if (mode !== 'playing' || game.status !== 'playing') return null;
+      const move = findHint(game);
+      if (!move) return null;
+      const first = pointFor(move[0]);
+      const second = pointFor(move[1]);
+      return first && second ? Object.freeze({ first, second }) : null;
+    },
+  });
+
+  Object.defineProperty(globalThis, '__CANYON_SANDBOX_DRIVER__', {
+    configurable: true,
+    enumerable: false,
+    writable: false,
+    value: api,
+  });
+  let active = true;
+  return Object.freeze({
+    destroy() {
+      if (!active) return;
+      active = false;
+      delete globalThis.__CANYON_SANDBOX_DRIVER__;
+    },
+  });
+}
+
+'''
+          if source.count(marker) != 1:
+              raise SystemExit('boot seam was not found exactly once')
+          source = source.replace(marker, block + marker)
+
+          old_boot = "  if (!booted.ok) throw new Error(booted.error.message);\n  requestAnimationFrame(frame);"
+          new_boot = "  if (!booted.ok) throw new Error(booted.error.message);\n  sandboxDriver = installSandboxDriver();\n  requestAnimationFrame(frame);"
+          if source.count(old_boot) != 1:
+              raise SystemExit('boot completion seam was not found exactly once')
+          source = source.replace(old_boot, new_boot)
+
+          old_hide = "window.addEventListener('pagehide', () => {\n  void integration?.destroy();\n});"
+          new_hide = "window.addEventListener('pagehide', () => {\n  sandboxDriver?.destroy();\n  void integration?.destroy();\n});"
+          if source.count(old_hide) != 1:
+              raise SystemExit('pagehide seam was not found exactly once')
+          source = source.replace(old_hide, new_hide)
+          path.write_text(source, encoding='utf-8')
+          PY
+      - name: Commit the reviewed driver only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add example/canyon-charms/src/main.js
+          git diff --cached --check
+          git commit -m 'feat: expose bounded Sandbox browser driver'
+          git push origin HEAD:refs/heads/ci/arkadium-sandbox-evidence
