@@ -23,6 +23,7 @@ jobs:
     timeout-minutes: 20
     env:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      PREVIEW_PATH: sandbox-candidates/${{ inputs.candidate_sha }}
     steps:
       - name: Validate exact candidate SHA
         shell: bash
@@ -55,7 +56,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           site="$RUNNER_TEMP/arkadium-sandbox-site"
-          preview="$site/sandbox-candidates/$CANDIDATE_SHA"
+          preview="$site/$PREVIEW_PATH"
           mkdir -p "$preview"
           cp -a example/canyon-charms/dist/. "$site/"
           cp -a example/canyon-charms/arkadium-dist/. "$preview/"
@@ -74,8 +75,8 @@ jobs:
           assert.equal(report.sdkVersion, '2.66.2');
           NODE
 
-          ! find "$site" -type l -print -quit | grep -q .
-          ! find "$site" -type f -name '*.map' -print -quit | grep -q .
+          test -z "$(find "$site" -type l -print -quit)"
+          test -z "$(find "$site" -type f -name '*.map' -print -quit)"
 
       - name: Read enabled GitHub Pages configuration
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
@@ -107,6 +108,7 @@ jobs:
       name: arkadium-sandbox
     env:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      PREVIEW_PATH: sandbox-candidates/${{ inputs.candidate_sha }}
       PAGE_URL: ${{ needs.deploy.outputs.page_url }}
       ARKADIUM_SANDBOX_AUTOMATION_JSON: ${{ secrets.ARKADIUM_SANDBOX_AUTOMATION_JSON }}
     steps:
@@ -117,7 +119,7 @@ jobs:
           fetch-depth: 1
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@49933ea5288ca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
 
@@ -129,7 +131,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -n "$PAGE_URL"
-          preview_url="${PAGE_URL%/}/sandbox-candidates/$CANDIDATE_SHA/"
+          preview_url="${PAGE_URL%/}/$PREVIEW_PATH/"
           mkdir -p evidence/arkadium-sandbox
           curl --fail --silent --show-error --location \
             --connect-timeout 10 --max-time 30 \
@@ -148,7 +150,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -n "$ARKADIUM_SANDBOX_AUTOMATION_JSON"
-          preview_url="${PAGE_URL%/}/sandbox-candidates/$CANDIDATE_SHA/"
+          preview_url="${PAGE_URL%/}/$PREVIEW_PATH/"
           node scripts/capture-arkadium-sandbox-evidence.mjs \
             --candidate-sha "$CANDIDATE_SHA" \
             --preview-url "$preview_url" \
