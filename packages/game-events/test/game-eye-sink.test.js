@@ -122,12 +122,50 @@ test('successful delivery emits exact envelopes in ordered batches of at most 32
   });
 });
 
+test('auto flush drains events that arrive during an in-flight request', async () => {
+  const requests = [];
+  let resolveFirstRequest;
+  const firstResponse = new Promise((resolve) => {
+    resolveFirstRequest = resolve;
+  });
+  const sink = createGameEyeSink(sinkOptions({
+    autoFlush: true,
+    retryDelaysMs: [],
+    fetchImpl: async (url, init) => {
+      const body = JSON.parse(init.body);
+      requests.push(body.events.map((event) => event.sequence));
+      if (requests.length === 1) return firstResponse;
+      return new Response(null, { status: 204 });
+    },
+  }));
+  const input = events(4);
+
+  await sink.dispatch(input[0]);
+  for (let attempt = 0; requests.length === 0 && attempt < 20; attempt += 1) {
+    await Promise.resolve();
+  }
+  assert.deepEqual(requests, [[1]]);
+
+  for (const event of input.slice(1)) await sink.dispatch(event);
+  resolveFirstRequest(new Response(null, { status: 204 }));
+  await sink.settled();
+
+  assert.deepEqual(requests.flat(), [1, 2, 3, 4]);
+  assert.equal(sink.diagnostics().queueCount, 0);
+  assert.equal(sink.diagnostics().inFlight, false);
+});
+
 test('queue overflow is bounded, deterministic, and never blocks dispatcher calls', async () => {
   const pending = [];
+  let requestCount = 0;
   const sink = createGameEyeSink(sinkOptions({
     maxQueueSize: 3,
     autoFlush: true,
-    fetchImpl: async () => new Promise((resolve) => pending.push(resolve)),
+    fetchImpl: async () => {
+      requestCount += 1;
+      if (requestCount === 1) return new Promise((resolve) => pending.push(resolve));
+      return new Response(null, { status: 204 });
+    },
   }));
   const input = events(5);
 
