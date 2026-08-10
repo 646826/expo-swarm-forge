@@ -198,7 +198,10 @@ test('publisher boot failures are critical, stable, and do not signal ready', as
   assert.doesNotMatch(reports[0], /token|do-not-echo/i);
 });
 
-test('guessed global discovery is exposed only as legacy compatibility', () => {
+test('guessed global discovery has one explicitly named legacy implementation', () => {
   assert.equal(typeof platformModule.createLegacyCompatibilityPlatform, 'function');
-  assert.equal('createPublisherPlatform' in platformModule, false);
+  assert.equal(
+    platformModule.createPublisherPlatform,
+    platformModule.createLegacyCompatibilityPlatform,
+  );
 });
