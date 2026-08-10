@@ -17,20 +17,80 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: build/vendor-arkadium-adapter
-      - name: Decode every part independently
+      - name: Test every plausible assembly against the reviewed digest
         shell: bash
+        env:
+          EXPECTED_SHA256: 320c33570a82cae554f5de184a527abd209647c06bc66a379647bb1efcfe5f10
         run: |
           set -Eeuo pipefail
-          for part in $(find .bootstrap/arkadium-snapshot -maxdepth 1 -type f -name 'part-*' | sort); do
-            printf 'checking=%s bytes=%s\n' "$part" "$(wc -c < "$part")"
-            if ! base64 --decode "$part" > "$RUNNER_TEMP/decoded-part"; then
-              printf 'invalid_part=%s\n' "$part" >&2
-              printf 'non_base64_characters:\n' >&2
-              LC_ALL=C grep -n -o '[^A-Za-z0-9+/=[:space:]]' "$part" | head -20 >&2 || true
-              printf 'first_32_bytes=' >&2
-              head -c 32 "$part" | od -An -tx1 >&2
-              printf 'last_32_bytes=' >&2
-              tail -c 32 "$part" | od -An -tx1 >&2
-              exit 1
+          root=.bootstrap/arkadium-snapshot
+          for part in $(find "$root" -maxdepth 1 -type f -name 'part-*' | sort); do
+            printf 'part=%s bytes=%s modulo4=%s text_sha256=%s\n' \
+              "$(basename "$part")" "$(wc -c < "$part")" "$(( $(wc -c < "$part") % 4 ))" \
+              "$(sha256sum "$part" | cut -d' ' -f1)"
+          done
+
+          assemble_stream() {
+            local name="$1"
+            shift
+            local encoded="$RUNNER_TEMP/${name}.b64"
+            local output="$RUNNER_TEMP/${name}.tgz"
+            cat "$@" > "$encoded"
+            if base64 --decode "$encoded" > "$output" 2>"$RUNNER_TEMP/${name}.error"; then
+              printf 'variant=%s decode=ok bytes=%s sha256=%s tar=%s\n' \
+                "$name" "$(wc -c < "$output")" "$(sha256sum "$output" | cut -d' ' -f1)" \
+                "$(tar -tzf "$output" >/dev/null 2>&1 && echo ok || echo invalid)"
+            else
+              printf 'variant=%s decode=failed error=%s\n' "$name" "$(tr '\n' ' ' < "$RUNNER_TEMP/${name}.error")"
+            fi
+          }
+
+          assemble_groups() {
+            local name="$1"
+            shift
+            local output="$RUNNER_TEMP/${name}.tgz"
+            : > "$output"
+            local group
+            for group in "$@"; do
+              local encoded="$RUNNER_TEMP/${name}-group.b64"
+              : > "$encoded"
+              IFS=',' read -ra members <<< "$group"
+              local member
+              for member in "${members[@]}"; do cat "$root/$member" >> "$encoded"; done
+              if ! base64 --decode "$encoded" >> "$output" 2>"$RUNNER_TEMP/${name}.error"; then
+                printf 'variant=%s decode=failed group=%s error=%s\n' \
+                  "$name" "$group" "$(tr '\n' ' ' < "$RUNNER_TEMP/${name}.error")"
+                return 0
+              fi
+            done
+            printf 'variant=%s decode=ok bytes=%s sha256=%s tar=%s\n' \
+              "$name" "$(wc -c < "$output")" "$(sha256sum "$output" | cut -d' ' -f1)" \
+              "$(tar -tzf "$output" >/dev/null 2>&1 && echo ok || echo invalid)"
+          }
+
+          assemble_stream original-eight \
+            "$root/part-000" "$root/part-001" "$root/part-002" "$root/part-003" \
+            "$root/part-004" "$root/part-005" "$root/part-006" "$root/part-007"
+          assemble_stream replacement-nine \
+            "$root/part-000" "$root/part-001" "$root/part-002" "$root/part-003" \
+            "$root/part-004a" "$root/part-004b" "$root/part-005" "$root/part-006" "$root/part-007"
+          assemble_stream all-ten \
+            "$root/part-000" "$root/part-001" "$root/part-002" "$root/part-003" \
+            "$root/part-004" "$root/part-004a" "$root/part-004b" \
+            "$root/part-005" "$root/part-006" "$root/part-007"
+
+          assemble_groups original-eight-groups \
+            part-000 part-001 part-002 part-003 part-004 part-005 part-006 part-007
+          assemble_groups replacement-nine-groups \
+            part-000 part-001 part-002 part-003 part-004a,part-004b part-005 part-006 part-007
+
+          found=false
+          for candidate in "$RUNNER_TEMP"/*.tgz; do
+            [[ -s "$candidate" ]] || continue
+            actual="$(sha256sum "$candidate" | cut -d' ' -f1)"
+            if [[ "$actual" == "$EXPECTED_SHA256" ]]; then
+              printf 'MATCH=%s\n' "$(basename "$candidate")"
+              found=true
             fi
           done
+          [[ "$found" == true ]]
