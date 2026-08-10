@@ -12,6 +12,7 @@
     "test": "node scripts/run-tests.mjs",
     "check": "node scripts/check.mjs",
     "build": "node scripts/build.mjs",
+    "build:arkadium": "node scripts/build-arkadium-candidate.mjs",
     "package": "node scripts/package.mjs",
     "serve": "node scripts/serve.mjs",
     "verify": "node scripts/verify.mjs",
