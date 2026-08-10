@@ -1,0 +1,85 @@
+name: Diagnose PR20 Chrome boot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-pr20-chrome.yml'
+      - 'example/canyon-charms/src/platform/runtime-platform.js'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run verify
+      - name: Capture Chrome evidence and print every marker
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/pr20-chrome"
+          mkdir -p "$evidence"
+          node scripts/serve.mjs example/canyon-charms/dist 4173 > "$evidence/server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then break; fi
+            [[ "$attempt" -lt 30 ]] || { cat "$evidence/server.log"; exit 1; }
+            sleep 1
+          done
+
+          browser="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -x "$browser"
+          url='http://127.0.0.1:4173/?seed=12345'
+          set +e
+          "$browser" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --hide-scrollbars --window-size=1280,720 --virtual-time-budget=8000 \
+            --dump-dom "$url" > "$evidence/dom.html" 2> "$evidence/chrome.log"
+          chrome_status=$?
+          "$browser" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --hide-scrollbars --window-size=1280,720 --virtual-time-budget=8000 \
+            --screenshot="$evidence/screenshot.png" "$url" >> "$evidence/chrome.log" 2>&1
+          screenshot_status=$?
+          set -e
+
+          EVIDENCE="$evidence" CHROME_STATUS="$chrome_status" SCREENSHOT_STATUS="$screenshot_status" node <<'NODE'
+          const { readFileSync, existsSync, statSync } = require('node:fs');
+          const dir = process.env.EVIDENCE;
+          const html = existsSync(`${dir}/dom.html`) ? readFileSync(`${dir}/dom.html`, 'utf8') : '';
+          const checks = {
+            title: /<title>Canyon Charms<\/title>/.test(html),
+            board: /Canyon Charms board\. Score 0 of 5,000\./.test(html),
+            reducedMotion: /data-reduced-motion="false"/.test(html),
+            onboarding: /Three in a row/.test(html),
+            integrationReady: /data-integration-phase="ready"/.test(html),
+            integrationLastEvent: /data-integration-last-event="sdk_ready"/.test(html),
+            integrationEventCount: /data-integration-event-count="3"/.test(html),
+            hiddenBootError: /<[^>]+data-role="boot-error"[^>]*\shidden(?:="")?(?:\s|>)/.test(html),
+          };
+          console.log(JSON.stringify({
+            chromeStatus: Number(process.env.CHROME_STATUS),
+            screenshotStatus: Number(process.env.SCREENSHOT_STATUS),
+            domBytes: Buffer.byteLength(html),
+            screenshotBytes: existsSync(`${dir}/screenshot.png`) ? statSync(`${dir}/screenshot.png`).size : 0,
+            checks,
+          }, null, 2));
+          if (Number(process.env.CHROME_STATUS) !== 0 || Number(process.env.SCREENSHOT_STATUS) !== 0) process.exit(1);
+          if (Object.values(checks).some((value) => !value)) process.exit(1);
+          NODE
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pr20-chrome-diagnostics-${{ github.sha }}
+          path: ${{ runner.temp }}/pr20-chrome
+          if-no-files-found: warn
+          retention-days: 3
