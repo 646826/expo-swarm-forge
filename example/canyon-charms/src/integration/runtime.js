@@ -1,4 +1,7 @@
+import { createGameEyeSink } from '../../../../packages/game-events/src/index.js';
 import { NO_CAPABILITIES } from '../../../../packages/publisher-platform/src/index.js';
+import { EXPECTED_OFFICIAL_SDK_VERSION } from '../platform/official-platform-core.js';
+import { createIntegrationDebugPanel } from './debug-panel.js';
 import { createCanyonIntegration as createCoreIntegration } from './runtime-core.js';
 
 function createDeferredRuntimePlatform(runtimeManifest) {
@@ -75,6 +78,100 @@ function publishRuntimeEvidence(runtimeManifest) {
   document.documentElement.dataset.runtimeBuildSha = runtimeManifest.buildSha;
 }
 
+function createCandidateGameEyeSink(runtimeManifest) {
+  if (!runtimeManifest.gameEyeEndpoint) return null;
+  return createGameEyeSink({
+    endpoint: runtimeManifest.gameEyeEndpoint,
+    context: {
+      project: runtimeManifest.gameEyeProject,
+      gameVersion: runtimeManifest.gameVersion,
+      buildSha: runtimeManifest.buildSha,
+      platformMode: runtimeManifest.mode,
+      sdkVersion: EXPECTED_OFFICIAL_SDK_VERSION,
+      locale: 'en-US',
+      userState: 'anonymous',
+    },
+  });
+}
+
+function instrumentCandidateIntegration({
+  integration,
+  platform,
+  gameEyeSink,
+  runtimeManifest,
+}) {
+  const debugPanel = gameEyeSink
+    ? createIntegrationDebugPanel({
+      runtimeManifest,
+      sdkVersion: EXPECTED_OFFICIAL_SDK_VERSION,
+    })
+    : null;
+  let destroyed = false;
+  let unsubscribeDiagnostics = null;
+
+  function updateDebugPanel() {
+    if (!debugPanel || destroyed) return;
+    try {
+      debugPanel.update({
+        sessionId: gameEyeSink.sessionId,
+        capabilities: platform.capabilities,
+        integrationDiagnostics: integration.diagnostics(),
+        deliveryDiagnostics: gameEyeSink.diagnostics(),
+      });
+    } catch {
+      // A diagnostics surface is an observer and cannot alter game behavior.
+    }
+  }
+
+  if (debugPanel) unsubscribeDiagnostics = gameEyeSink.subscribe(updateDebugPanel);
+  updateDebugPanel();
+
+  const pageTarget = globalThis;
+  const onPageHide = () => {
+    gameEyeSink?.flushOnUnload();
+    updateDebugPanel();
+  };
+  if (gameEyeSink && typeof pageTarget.addEventListener === 'function') {
+    pageTarget.addEventListener('pagehide', onPageHide);
+  }
+
+  function tracked(method) {
+    return (...args) => Promise.resolve(integration[method](...args)).finally(updateDebugPanel);
+  }
+
+  async function destroy() {
+    if (destroyed) return;
+    try {
+      await integration.destroy();
+    } finally {
+      gameEyeSink?.flushOnUnload();
+      gameEyeSink?.destroy({ useBeacon: false });
+      unsubscribeDiagnostics?.();
+      if (gameEyeSink && typeof pageTarget.removeEventListener === 'function') {
+        pageTarget.removeEventListener('pagehide', onPageHide);
+      }
+      debugPanel?.destroy();
+      destroyed = true;
+    }
+  }
+
+  return Object.freeze({
+    get phase() {
+      return integration.phase;
+    },
+    boot: tracked('boot'),
+    startLevel: tracked('startLevel'),
+    moveRejected: tracked('moveRejected'),
+    moveAccepted: tracked('moveAccepted'),
+    pause: tracked('pause'),
+    resume: tracked('resume'),
+    complete: tracked('complete'),
+    destroy,
+    settled: tracked('settled'),
+    diagnostics: () => integration.diagnostics(),
+  });
+}
+
 /**
  * Keeps the normal static release standalone while allowing the exact Vite
  * candidate to inject one validated publisher manifest at build time.
@@ -84,10 +181,24 @@ export function createCanyonIntegration(options = {}) {
   if (!runtimeManifest || options.platform) return createCoreIntegration(options);
 
   publishRuntimeEvidence(runtimeManifest);
-  return createCoreIntegration({
+  const platform = createDeferredRuntimePlatform(runtimeManifest);
+  const gameEyeSink = createCandidateGameEyeSink(runtimeManifest);
+  const configuredSinks = options.sinks ?? [];
+  if (!Array.isArray(configuredSinks)) {
+    throw new TypeError('Integration sinks must be an array.');
+  }
+  const integration = createCoreIntegration({
     ...options,
-    platform: createDeferredRuntimePlatform(runtimeManifest),
+    platform,
     platformMode: runtimeManifest.mode,
     publisherMode: true,
+    sinks: gameEyeSink ? [...configuredSinks, gameEyeSink] : configuredSinks,
+  });
+
+  return instrumentCandidateIntegration({
+    integration,
+    platform,
+    gameEyeSink,
+    runtimeManifest,
   });
 }
