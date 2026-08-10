@@ -35,7 +35,18 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ inputs.candidate_sha }}
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Require trusted mainline candidate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$CANDIDATE_SHA" refs/remotes/origin/main; then
+            echo 'Candidate SHA is not reachable from the trusted main branch.' >&2
+            exit 1
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
