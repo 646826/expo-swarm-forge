@@ -71,6 +71,9 @@ jobs:
           assert.match(html, /Canyon Charms board\. Score 0 of 5,000\./);
           assert.match(html, /data-reduced-motion="false"/);
           assert.match(html, /Three in a row/);
+          assert.match(html, /data-integration-phase="ready"/);
+          assert.match(html, /data-integration-last-event="sdk_ready"/);
+          assert.match(html, /data-integration-event-count="3"/);
           const bootTag = html.match(/<[^>]+data-role="boot-error"[^>]*>/)?.[0] ?? '';
           assert.match(bootTag, /\shidden(?:="")?(?:\s|>)/);
           NODE
