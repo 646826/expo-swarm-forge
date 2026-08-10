@@ -9,6 +9,7 @@ import {
   finalizeCandidateManifest,
   verifyCandidateOutput,
 } from '../scripts/arkadium-candidate-lib.mjs';
+import { buildProject } from '../scripts/project-lib.mjs';
 
 const SHA = '1111111111111111111111111111111111111111';
 
@@ -154,18 +155,41 @@ test('candidate verification rejects source maps, bare imports, and external mod
   }
 });
 
+test('standalone build excludes candidate tooling and candidate output', async () => {
+  const temporary = await mkdtemp(join(tmpdir(), 'canyon-standalone-boundary-'));
+  try {
+    await mkdir(join(temporary, 'arkadium-dist'), { recursive: true });
+    await writeFile(join(temporary, 'index.html'), '<title>Standalone Boundary</title>\n');
+    await writeFile(join(temporary, 'vite.config.ts'), 'throw new Error("build only");\n');
+    await writeFile(join(temporary, 'arkadium-dist', 'candidate.js'), 'console.log("candidate");\n');
+    await writeFile(join(temporary, 'game.config.json'), `${JSON.stringify({
+      slug: 'standalone-boundary',
+      title: 'Standalone Boundary',
+      entry: 'index.html',
+      output: 'dist',
+      buildBudgetBytes: 750000,
+    }, null, 2)}\n`);
+
+    const report = await buildProject(temporary);
+    assert.equal(report.files.some((file) => file.path === 'vite.config.ts'), false);
+    assert.equal(report.files.some((file) => file.path.startsWith('arkadium-dist/')), false);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
 test('Canyon runtime and repository commands expose the official candidate track', async () => {
-  const [mainSource, viteSource, packageSource, verifySource, workflowSource] = await Promise.all([
-    readFile(new URL('../example/canyon-charms/src/main.js', import.meta.url), 'utf8'),
+  const [runtimeSource, viteSource, packageSource, verifySource, workflowSource] = await Promise.all([
+    readFile(new URL('../example/canyon-charms/src/integration/runtime.js', import.meta.url), 'utf8'),
     readFile(new URL('../example/canyon-charms/vite.config.ts', import.meta.url), 'utf8'),
     readFile(new URL('../package.json', import.meta.url), 'utf8'),
     readFile(new URL('../scripts/verify.mjs', import.meta.url), 'utf8'),
     readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(mainSource, /createRuntimePlatform/);
-  assert.match(mainSource, /__CANYON_RUNTIME_MANIFEST__/);
-  assert.match(mainSource, /platformMode:\s*runtimeManifest\.mode/);
+  assert.match(runtimeSource, /createRuntimePlatform/);
+  assert.match(runtimeSource, /__CANYON_RUNTIME_MANIFEST__/);
+  assert.match(runtimeSource, /platformMode:\s*runtimeManifest\.mode/);
   assert.match(viteSource, /defineConfig/);
   assert.match(viteSource, /arkadium-dist/);
   assert.match(viteSource, /sourcemap:\s*false/);
