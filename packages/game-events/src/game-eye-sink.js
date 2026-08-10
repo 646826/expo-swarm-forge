@@ -404,7 +404,7 @@ export function createGameEyeSink({
     scheduled = Promise.resolve()
       .then(() => {
         scheduled = null;
-        return startFlush(true);
+        return startFlush(false);
       })
       .catch(() => undefined);
   }
