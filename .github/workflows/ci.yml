@@ -76,6 +76,7 @@ jobs:
           assert.match(html, /data-integration-event-count="3"/);
           const bootTag = html.match(/<[^>]+data-role="boot-error"[^>]*>/)?.[0] ?? '';
           assert.match(bootTag, /\shidden(?:="")?(?:\s|>)/);
+          assert.doesNotMatch(html, /data-role="integration-debug"/);
           NODE
 
           "$browser" \
@@ -134,7 +135,7 @@ jobs:
 
           browser="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           test -x "$browser"
-          url='http://127.0.0.1:4174/?seed=12345'
+          url='http://127.0.0.1:4174/?seed=12345&integrationDebug=1'
 
           "$browser" \
             --headless=new \
@@ -157,6 +158,14 @@ jobs:
           assert.match(html, /data-runtime-mode="arkadium-sandbox"/);
           assert.match(html, new RegExp(`data-runtime-build-sha="${process.env.GITHUB_SHA}"`));
           assert.match(html, /data-role="boot-error"/);
+          const debugPanel = html.match(
+            /<aside\b[^>]*data-role="integration-debug"[^>]*>[\s\S]*?<\/aside>/,
+          )?.[0] ?? '';
+          assert.match(debugPanel, /Arkadium integration/);
+          assert.match(debugPanel, /Mode: arkadium-sandbox/);
+          assert.match(debugPanel, /SDK: 2\.66\.2/);
+          assert.match(debugPanel, /Game Eye queue:/);
+          assert.doesNotMatch(debugPanel, /credential|access[_ -]?token|refresh[_ -]?token|password|profile|save[_ -]?payload|app[_ -]?insights|cookie|request[_ -]?id|transaction[_ -]?id/i);
           NODE
 
           "$browser" \
