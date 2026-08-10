@@ -8,6 +8,8 @@ const PHASES = Object.freeze({
   DESTROYED: 'destroyed',
 });
 
+const PAUSE_SOURCES = Object.freeze(['host', 'visibility', 'player', 'system']);
+
 const SAFE_FAILURES = Object.freeze({
   initialize: 'Unable to initialize the publisher platform.',
   ready: 'Unable to signal publisher readiness.',
@@ -20,6 +22,7 @@ const SAFE_FAILURES = Object.freeze({
   destroy: 'Unable to destroy the publisher platform cleanly.',
   pauseEffect: 'Unable to apply the paused presentation state.',
   resumeEffect: 'Unable to apply the resumed presentation state.',
+  transition: 'Unable to record the publisher lifecycle transition.',
 });
 
 function success(value = undefined) {
@@ -35,6 +38,10 @@ function failure(code, message) {
 
 function validLevelId(levelId) {
   return typeof levelId === 'string' && levelId.length > 0 && levelId.length <= 64;
+}
+
+function validPauseSource(source) {
+  return PAUSE_SOURCES.includes(source);
 }
 
 function normalizeScore(value) {
@@ -56,10 +63,14 @@ export function createGameSessionController({
   suspendAudio = () => {},
   resumeAudio = () => {},
   reportIntegrationError = () => {},
+  onTransition = () => {},
   publisherMode = false,
 } = {}) {
   if (!platform || typeof platform !== 'object') {
     throw new TypeError('A publisher platform is required.');
+  }
+  if (typeof onTransition !== 'function') {
+    throw new TypeError('Session transition observer must be a function.');
   }
 
   let phase = PHASES.NEW;
@@ -82,6 +93,14 @@ export function createGameSessionController({
     }
   }
 
+  async function transition(type, payload = {}) {
+    try {
+      await Promise.resolve(onTransition(type, Object.freeze({ ...payload })));
+    } catch {
+      report(SAFE_FAILURES.transition);
+    }
+  }
+
   function enqueue(operation) {
     const scheduled = chain.then(operation, operation);
     chain = scheduled.then(
@@ -100,12 +119,13 @@ export function createGameSessionController({
     }
 
     const message = SAFE_FAILURES[stage] ?? 'Publisher integration failed.';
+    const code = publisherMode
+      ? 'PUBLISHER_INTEGRATION_FAILED'
+      : 'PLATFORM_INTEGRATION_FAILED';
+    await transition('integration-error', { stage, code });
     report(message);
     if (critical) phase = PHASES.ENDED;
-    return failure(
-      publisherMode ? 'PUBLISHER_INTEGRATION_FAILED' : 'PLATFORM_INTEGRATION_FAILED',
-      message,
-    );
+    return failure(code, message);
   }
 
   async function applyEffects(paused) {
@@ -116,6 +136,10 @@ export function createGameSessionController({
     } catch {
       const stage = paused ? 'pauseEffect' : 'resumeEffect';
       const message = SAFE_FAILURES[stage];
+      await transition('integration-error', {
+        stage,
+        code: 'PRESENTATION_TRANSITION_FAILED',
+      });
       report(message);
       return failure('PRESENTATION_TRANSITION_FAILED', message);
     }
@@ -132,19 +156,23 @@ export function createGameSessionController({
     }
   }
 
-  function registerHostLifecycle() {
+  async function registerHostLifecycle() {
     try {
       const unsubscribePause = platform.onPause(() => {
-        void pause();
+        void pause('host');
       });
       const unsubscribeResume = platform.onResume(() => {
-        void resume();
+        void resume('host');
       });
       if (typeof unsubscribePause === 'function') subscriptions.push(unsubscribePause);
       if (typeof unsubscribeResume === 'function') subscriptions.push(unsubscribeResume);
       return success();
     } catch {
       const message = SAFE_FAILURES.subscribe;
+      await transition('integration-error', {
+        stage: 'subscribe',
+        code: 'PUBLISHER_INTEGRATION_FAILED',
+      });
       report(message);
       phase = PHASES.ENDED;
       removeSubscriptions();
@@ -162,13 +190,15 @@ export function createGameSessionController({
       }
 
       phase = PHASES.INITIALIZING;
+      await transition('initialization-started');
       const initialized = await callPlatform('initialize', () => platform.initialize(), {
         critical: true,
       });
       if (!initialized.ok) return initialized;
       context = initialized.value;
+      await transition('initialized', { context });
 
-      const subscribed = registerHostLifecycle();
+      const subscribed = await registerHostLifecycle();
       if (!subscribed.ok) return subscribed;
 
       const ready = await callPlatform('ready', () => platform.signalReady(), {
@@ -180,6 +210,7 @@ export function createGameSessionController({
       }
 
       phase = PHASES.READY;
+      await transition('ready');
       return success(context);
     });
   }
@@ -207,6 +238,7 @@ export function createGameSessionController({
         const started = await callPlatform('gameStart', () => platform.signalGameStart());
         if (!started.ok) return started;
         gameStarted = true;
+        await transition('game-started', { levelId });
       }
 
       if (!levelStarted) {
@@ -214,6 +246,7 @@ export function createGameSessionController({
         if (!started.ok) return started;
         currentLevelId = levelId;
         levelStarted = true;
+        await transition('level-started', { levelId });
       }
 
       phase = PHASES.PLAYING;
@@ -235,23 +268,34 @@ export function createGameSessionController({
       const reported = await callPlatform('score', () => platform.signalScore(normalized));
       if (!reported.ok) return reported;
       lastScore = normalized;
+      await transition('score', { score: normalized });
       return success(lastScore);
     });
   }
 
-  function pause() {
+  function pause(source = 'player') {
     return enqueue(async () => {
+      if (!validPauseSource(source)) {
+        return failure('INVALID_PAUSE_SOURCE', 'Pause source is not supported.');
+      }
       if (phase !== PHASES.PLAYING) return success();
       phase = PHASES.PAUSED;
-      return applyEffects(true);
+      const applied = await applyEffects(true);
+      if (applied.ok) await transition('paused', { source });
+      return applied;
     });
   }
 
-  function resume() {
+  function resume(source = 'player') {
     return enqueue(async () => {
+      if (!validPauseSource(source)) {
+        return failure('INVALID_PAUSE_SOURCE', 'Resume source is not supported.');
+      }
       if (phase !== PHASES.PAUSED) return success();
       phase = PHASES.PLAYING;
-      return applyEffects(false);
+      const applied = await applyEffects(false);
+      if (applied.ok) await transition('resumed', { source });
+      return applied;
     });
   }
 
@@ -275,11 +319,13 @@ export function createGameSessionController({
         const ended = await callPlatform('levelEnd', () => platform.signalLevelEnd(levelId));
         if (!ended.ok) return ended;
         levelEnded = true;
+        await transition('level-ended', { levelId });
       }
       if (!gameEnded) {
         const ended = await callPlatform('gameEnd', () => platform.signalGameEnd(reason));
         if (!ended.ok) return ended;
         gameEnded = true;
+        await transition('game-ended', { reason });
       }
 
       phase = PHASES.ENDED;
