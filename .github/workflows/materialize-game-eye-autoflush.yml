@@ -1,0 +1,42 @@
+name: Materialize Game Eye auto-flush fix
+
+on:
+  push:
+    branches:
+      - feat/game-eye-diagnostics
+    paths:
+      - .github/workflows/materialize-game-eye-autoflush.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: feat/game-eye-diagnostics
+          fetch-depth: 0
+      - name: Drain every queued batch in background auto-flush
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('packages/game-events/src/game-eye-sink.js')
+          source = path.read_text(encoding='utf-8')
+          old = '        return startFlush(true);'
+          new = '        return startFlush(false);'
+          if source.count(old) != 1:
+              raise SystemExit('reviewed auto-flush seam was not found exactly once')
+          path.write_text(source.replace(old, new), encoding='utf-8')
+          PY
+      - name: Commit the single reviewed change
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add packages/game-events/src/game-eye-sink.js
+          git diff --cached --check
+          git commit -m 'fix: drain queued Game Eye batches automatically'
+          git push origin HEAD:refs/heads/feat/game-eye-diagnostics
