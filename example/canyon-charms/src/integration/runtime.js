@@ -1,8 +1,9 @@
 import { createGameEyeSink } from '../../../../packages/game-events/src/index.js';
 import { NO_CAPABILITIES } from '../../../../packages/publisher-platform/src/index.js';
-import { EXPECTED_OFFICIAL_SDK_VERSION } from '../platform/official-platform-core.js';
 import { createIntegrationDebugPanel } from './debug-panel.js';
 import { createCanyonIntegration as createCoreIntegration } from './runtime-core.js';
+
+const EXPECTED_OFFICIAL_SDK_VERSION = '2.66.2';
 
 function createDeferredRuntimePlatform(runtimeManifest) {
   let platformPromise = null;
