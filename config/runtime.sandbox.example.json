@@ -7,6 +7,6 @@
   "appInsightsId": null,
   "gameEyeEndpoint": "http://127.0.0.1:3001/v1/game-events",
   "gameEyeProject": "canyon-charms",
-  "gameVersion": "1.0.0",
+  "gameVersion": "1.1.0",
   "buildSha": "709a1556fda3fa7a1506d46ec704cc654308775b"
 }
