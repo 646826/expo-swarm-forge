@@ -69,6 +69,12 @@ function createDeferredRuntimePlatform(runtimeManifest) {
   });
 }
 
+function publishRuntimeEvidence(runtimeManifest) {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dataset.runtimeMode = runtimeManifest.mode;
+  document.documentElement.dataset.runtimeBuildSha = runtimeManifest.buildSha;
+}
+
 /**
  * Keeps the normal static release standalone while allowing the exact Vite
  * candidate to inject one validated publisher manifest at build time.
@@ -77,6 +83,7 @@ export function createCanyonIntegration(options = {}) {
   const runtimeManifest = globalThis.__CANYON_RUNTIME_MANIFEST__ ?? null;
   if (!runtimeManifest || options.platform) return createCoreIntegration(options);
 
+  publishRuntimeEvidence(runtimeManifest);
   return createCoreIntegration({
     ...options,
     platform: createDeferredRuntimePlatform(runtimeManifest),
