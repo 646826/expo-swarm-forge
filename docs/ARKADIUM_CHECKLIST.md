@@ -2,6 +2,8 @@
 
 This checklist separates repository-owned work from publisher-owned approvals. Passing it does not claim acceptance by Arkadium.
 
+**Current release state: `contract-ready`.** The repository does not claim Sandbox verification until the protected official workflow succeeds for one exact candidate and its evidence is reviewed.
+
 ## Playable package
 
 - [x] Static HTML, CSS and JavaScript package.
@@ -24,19 +26,31 @@ This checklist separates repository-owned work from publisher-owned approvals. P
 
 ## Integration boundary
 
-- [x] Lifecycle, score and analytics calls pass through one adapter.
-- [x] Calls are bounded, ordered and best effort.
-- [x] Missing or rejected SDK calls cannot block play.
-- [ ] Pin the exact publisher SDK version supplied for the assigned game.
-- [ ] Replace capability discovery with the confirmed typed SDK surface.
-- [ ] Add the assigned game identifier and approved analytics configuration through deployment secrets, never source control.
-- [ ] Validate lifecycle order in the publisher Sandbox.
-- [ ] Validate ads, wallet/Gems, authentication and leaderboard capabilities only when enabled for the title.
+- [x] Lifecycle, score and analytics calls pass through one typed adapter/runtime path.
+- [x] Calls are bounded, ordered and fail closed at the publisher boundary.
+- [x] Standalone play never imports the official SDK.
+- [x] Exact `@arkadiuminc/sdk` version `2.66.2` and reviewed adapter snapshot are pinned and verified.
+- [x] Official candidate build is bound to an exact commit and public runtime manifest.
+- [x] Candidate output rejects source maps, external module URLs, bare imports, raw `node_modules` and TypeScript sources.
+- [x] Game Eye delivery uses a reviewed schema, bounded queue/batch/retry limits and redacted structural diagnostics.
+- [x] Protected Sandbox evidence verifier rejects stale, reordered, mismatched or sensitive evidence.
+- [ ] Run the protected `arkadium-sandbox` workflow against the official host and retain a genuine `sandbox-verified` bundle.
+- [ ] Add the assigned DEV `gameId` and approved publisher configuration through deployment controls, never source control.
+- [ ] Validate ads, wallet/Gems, authentication and leaderboard capabilities only when explicitly enabled for the title.
+
+## Release-state progression
+
+- [x] `contract-ready` — repository contracts, deterministic builds and local browser gates pass.
+- [ ] `sandbox-verified` — exact candidate has official host lifecycle, pause/resume and sanitized RPC evidence.
+- [ ] `arkadium-dev-ready` — assigned DEV game configuration and enabled capability set are approved.
+- [ ] `production-approved` — production, legal, privacy, monetization and launch approvals are complete.
+
+See `docs/ARKADIUM_SANDBOX_RUNBOOK.md` for the protected environment, automation JSON schema, evidence bundle and promotion procedure.
 
 ## Evidence still requiring external access
 
-- [ ] Arkadium developer/Sandbox access.
-- [ ] Real `gameId` and production credentials.
+- [ ] Protected Arkadium developer/Sandbox access and reviewer approval.
+- [ ] Real assigned `gameId` and production credentials.
 - [ ] Publisher metadata approval.
 - [ ] Legal, privacy and content review.
 - [ ] Real-device performance measurements on the required matrix.
@@ -52,7 +66,8 @@ This checklist separates repository-owned work from publisher-owned approvals. P
 5. Input, accessibility and browser support matrix.
 6. Asset provenance statement.
 7. Test and playtest evidence tied to an exact commit SHA.
-8. The Russian classroom handbook as supporting documentation for the reusable process.
+8. Protected Sandbox evidence after a genuine successful official run.
+9. The Russian classroom handbook as supporting documentation for the reusable process.
 
 ## Clean-room statement
 
