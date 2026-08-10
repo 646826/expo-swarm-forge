@@ -1,6 +1,7 @@
 import { cellCoordinates, cellIndex } from './core/board.js';
 import { attemptSwap, createGame, findHint } from './core/game-state.js';
-import { createPublisherPlatform, createStorage } from './platform/platform.js';
+import { createCanyonIntegration } from './integration/runtime.js';
+import { createStorage } from './platform/platform.js';
 
 const canvas = document.querySelector('#game-canvas');
 const context = canvas.getContext('2d', { alpha: false });
@@ -23,7 +24,7 @@ const motionButtons = [...document.querySelectorAll('[data-action="motion"]')];
 if (!canvas || !context) throw new Error('Canvas 2D is required to play Canyon Charms.');
 
 const storage = createStorage();
-const platform = createPublisherPlatform();
+let integration = null;
 let settings = storage.load();
 let game = createGame(seedFromLocation());
 let mode = 'title';
@@ -40,6 +41,7 @@ let visualCounter = 1;
 let layout = null;
 let lastFrame = performance.now();
 let resumeAfterHelp = false;
+let startPending = false;
 const flashes = new Map();
 const particles = [];
 const flyups = [];
@@ -70,6 +72,34 @@ function announce(message) {
   requestAnimationFrame(() => {
     announcer.textContent = message;
   });
+}
+
+function syncIntegrationDiagnostics() {
+  if (!integration) return;
+  const diagnostics = integration.diagnostics();
+  app.dataset.integrationPhase = diagnostics.phase;
+  app.dataset.integrationEventCount = String(diagnostics.events.length);
+  app.dataset.integrationLastEvent = diagnostics.events.at(-1)?.name ?? 'none';
+}
+
+async function trackIntegration(operation) {
+  try {
+    return await operation;
+  } finally {
+    syncIntegrationDiagnostics();
+  }
+}
+
+function setSessionPaused(paused) {
+  if (paused && mode === 'playing') {
+    setMode('paused');
+    announce('Game paused.');
+  } else if (!paused && mode === 'paused') {
+    setMode('playing');
+    announce('Game resumed.');
+    canvas.focus({ preventScroll: true });
+  }
+  queueMicrotask(syncIntegrationDiagnostics);
 }
 
 function persist() {
@@ -113,40 +143,45 @@ function setMode(nextMode) {
   updateHud();
 }
 
-function startGame() {
-  const nextSeed = (game.seed + game.turn + 0x9e37_79b9) >>> 0;
-  game = createGame(nextSeed);
-  selected = null;
-  focused = 0;
-  hint = null;
-  flashes.clear();
-  particles.length = 0;
-  flyups.length = 0;
-  setMode('playing');
-  unlockAudio();
-  tone(392, 0.08, 'triangle', 0.035);
-  setTimeout(() => tone(523.25, 0.12, 'triangle', 0.04), 80);
-  platform.started();
-  platform.track('level_start', { seed: game.seed });
-  announce('New game started. Reach five thousand points in twenty moves.');
-  canvas.focus({ preventScroll: true });
+async function startGame() {
+  if (startPending) return;
+  if (integration?.phase === 'ended' || integration?.phase === 'destroyed') {
+    location.reload();
+    return;
+  }
+
+  startPending = true;
+  try {
+    const started = await trackIntegration(integration.startLevel('1'));
+    if (!started.ok) return;
+
+    const nextSeed = (game.seed + game.turn + 0x9e37_79b9) >>> 0;
+    game = createGame(nextSeed);
+    selected = null;
+    focused = 0;
+    hint = null;
+    flashes.clear();
+    particles.length = 0;
+    flyups.length = 0;
+    setMode('playing');
+    unlockAudio();
+    tone(392, 0.08, 'triangle', 0.035);
+    setTimeout(() => tone(523.25, 0.12, 'triangle', 0.04), 80);
+    announce('New game started. Reach five thousand points in twenty moves.');
+    canvas.focus({ preventScroll: true });
+  } finally {
+    startPending = false;
+  }
 }
 
-function pauseGame() {
+function pauseGame(source = 'player') {
   if (mode !== 'playing') return;
-  setMode('paused');
-  suspendAudio();
-  platform.paused();
-  announce('Game paused.');
+  void trackIntegration(integration.pause(source));
 }
 
-function resumeGame() {
+function resumeGame(source = 'player') {
   if (mode !== 'paused') return;
-  setMode('playing');
-  unlockAudio();
-  platform.resumed();
-  announce('Game resumed.');
-  canvas.focus({ preventScroll: true });
+  void trackIntegration(integration.resume(source));
 }
 
 function showResult() {
@@ -164,9 +199,13 @@ function showResult() {
   finalScoreNode.textContent = format(game.score);
   setMode('result');
   if (won) emitVictory();
-  platform.submitScore(game.score);
-  platform.completed({ status: game.status, score: game.score, moves: game.moves });
-  platform.track('level_complete', { status: game.status, score: game.score, moves: game.moves });
+  void trackIntegration(integration.complete({
+    levelId: '1',
+    result: game.status,
+    reason: won ? 'completed' : 'lost',
+    score: game.score,
+    movesRemaining: game.moves,
+  }));
   announce(won ? `You won with ${format(game.score)} points.` : `The level ended with ${format(game.score)} points.`);
 }
 
@@ -240,6 +279,10 @@ function performSwap(first, second) {
     shakeStrength = settings.reducedMotion ? 1 : 7;
     tone(126, 0.11, 'square', 0.018);
     announce('That swap does not create a match. The move was returned.');
+    void trackIntegration(integration.moveRejected({
+      reason: result.reason,
+      movesRemaining: game.moves,
+    }));
     updateHud();
     return;
   }
@@ -260,12 +303,12 @@ function performSwap(first, second) {
   const combo = game.lastTurn?.combo ?? 1;
   tone(280 + Math.min(combo, 5) * 54, 0.08, 'triangle', 0.025);
   if (combo > 1) tone(520 + combo * 36, 0.12, 'sine', 0.026, 0.06);
-  platform.track('move_complete', {
-    turn: game.turn,
+  void trackIntegration(integration.moveAccepted({
     scoreDelta: delta,
     combo,
-    moves: game.moves,
-  });
+    movesRemaining: game.moves,
+    totalScore: game.score,
+  }));
   announce(
     combo > 1
       ? `Match accepted. ${format(delta)} points. Combo times ${combo}. ${game.moves} moves remain.`
@@ -379,7 +422,7 @@ window.addEventListener('keydown', (event) => {
     if (mode === 'playing') pauseGame();
     else if (mode === 'paused') resumeGame();
   } else if (key === 'm') toggleSound();
-  else if (key === 'r' && mode !== 'title') startGame();
+  else if (key === 'r' && mode !== 'title') void startGame();
   else if (key === 'h' || key === '?') showHelp();
 });
 
@@ -387,7 +430,7 @@ document.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
   const action = button.dataset.action;
-  if (action === 'start' || action === 'restart') startGame();
+  if (action === 'start' || action === 'restart') void startGame();
   else if (action === 'pause') mode === 'paused' ? resumeGame() : pauseGame();
   else if (action === 'resume') resumeGame();
   else if (action === 'sound') toggleSound();
@@ -397,7 +440,7 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && mode === 'playing') pauseGame();
+  if (document.hidden && mode === 'playing') pauseGame('visibility');
 });
 
 function resizeCanvas() {
@@ -854,23 +897,33 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-function boot() {
+async function boot() {
   persist();
   updateHud();
   setMode('title');
   resizeCanvas();
-  platform.loaded();
-  void platform.connect();
+  integration = createCanyonIntegration({
+    setPaused: setSessionPaused,
+    suspendAudio,
+    resumeAudio: unlockAudio,
+    reportIntegrationError: announce,
+  });
+  const booted = await trackIntegration(integration.boot());
+  if (!booted.ok) throw new Error(booted.error.message);
   requestAnimationFrame(frame);
 }
 
-try {
-  boot();
-} catch (error) {
+function showBootError(error) {
+  syncIntegrationDiagnostics();
   const panel = document.querySelector('[data-role="boot-error"]');
   panel.hidden = false;
   document.querySelector('[data-role="boot-error-message"]').textContent = error instanceof Error
     ? `${error.name}: ${error.message}`
     : String(error);
-  throw error;
 }
+
+window.addEventListener('pagehide', () => {
+  void integration?.destroy();
+});
+
+void boot().catch(showBootError);
