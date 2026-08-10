@@ -198,14 +198,13 @@ export function createCanyonIntegration(options = {}) {
     publisherMode: true,
     sinks: gameEyeSink ? [...configuredSinks, gameEyeSink] : configuredSinks,
   });
-  const evidenceApi = gameEyeSink
-    ? installSandboxEvidenceApi({
-      runtimeManifest,
-      sdkVersion: EXPECTED_OFFICIAL_SDK_VERSION,
-      sessionId: gameEyeSink.sessionId,
-      getDiagnostics: () => integration.diagnostics(),
-    })
-    : null;
+  const sandboxSessionId = gameEyeSink?.sessionId ?? globalThis.crypto?.randomUUID?.();
+  const evidenceApi = installSandboxEvidenceApi({
+    runtimeManifest,
+    sdkVersion: EXPECTED_OFFICIAL_SDK_VERSION,
+    sessionId: sandboxSessionId,
+    getDiagnostics: () => integration.diagnostics(),
+  });
 
   return instrumentCandidateIntegration({
     integration,
