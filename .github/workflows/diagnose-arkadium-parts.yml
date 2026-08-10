@@ -1,0 +1,36 @@
+name: Diagnose Arkadium snapshot parts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.bootstrap/arkadium-snapshot/**'
+      - '.github/workflows/diagnose-arkadium-parts.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: build/vendor-arkadium-adapter
+      - name: Decode every part independently
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for part in $(find .bootstrap/arkadium-snapshot -maxdepth 1 -type f -name 'part-*' | sort); do
+            printf 'checking=%s bytes=%s\n' "$part" "$(wc -c < "$part")"
+            if ! base64 --decode "$part" > "$RUNNER_TEMP/decoded-part"; then
+              printf 'invalid_part=%s\n' "$part" >&2
+              printf 'non_base64_characters:\n' >&2
+              LC_ALL=C grep -n -o '[^A-Za-z0-9+/=[:space:]]' "$part" | head -20 >&2 || true
+              printf 'first_32_bytes=' >&2
+              head -c 32 "$part" | od -An -tx1 >&2
+              printf 'last_32_bytes=' >&2
+              tail -c 32 "$part" | od -An -tx1 >&2
+              exit 1
+            fi
+          done
