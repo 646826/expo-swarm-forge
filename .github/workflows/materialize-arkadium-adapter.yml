@@ -6,11 +6,6 @@ on:
     paths:
       - '.bootstrap/arkadium-snapshot/**'
       - '.github/workflows/materialize-arkadium-adapter.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - '.bootstrap/arkadium-snapshot/**'
-      - '.github/workflows/materialize-arkadium-adapter.yml'
 
 permissions:
   contents: write
@@ -35,21 +30,12 @@ jobs:
         with:
           node-version: 22
 
-      - name: Detect complete bootstrap payload
+      - name: Verify and extract reviewed snapshot payload
         shell: bash
+        env:
+          SNAPSHOT_SHA256: 320c33570a82cae554f5de184a527abd209647c06bc66a379647bb1efcfe5f10
         run: |
           set -Eeuo pipefail
-          shopt -s nullglob
-          parts=(.bootstrap/arkadium-snapshot/part-*)
-          if (( ${#parts[@]} == 0 )); then
-            echo 'HAS_SNAPSHOT_PAYLOAD=false' >> "$GITHUB_ENV"
-            echo 'No bootstrap payload remains; nothing to materialize.'
-            exit 0
-          fi
-          if (( ${#parts[@]} != 10 )); then
-            printf 'Expected 10 payload parts, found %s.\n' "${#parts[@]}" >&2
-            exit 1
-          fi
           expected=(
             .bootstrap/arkadium-snapshot/part-000
             .bootstrap/arkadium-snapshot/part-001
@@ -62,25 +48,26 @@ jobs:
             .bootstrap/arkadium-snapshot/part-006
             .bootstrap/arkadium-snapshot/part-007
           )
-          for index in "${!expected[@]}"; do
-            if [[ "${parts[$index]}" != "${expected[$index]}" ]]; then
-              printf 'Unexpected payload part at index %s: %s\n' "$index" "${parts[$index]}" >&2
-              exit 1
-            fi
+          for part in "${expected[@]}"; do
+            test -s "$part"
           done
-          echo 'HAS_SNAPSHOT_PAYLOAD=true' >> "$GITHUB_ENV"
+          mapfile -t actual < <(find .bootstrap/arkadium-snapshot -maxdepth 1 -type f -name 'part-*' | sort)
+          if (( ${#actual[@]} != ${#expected[@]} )); then
+            printf 'Expected %s payload parts, found %s.\n' "${#expected[@]}" "${#actual[@]}" >&2
+            exit 1
+          fi
+          for index in "${!expected[@]}"; do
+            [[ "${actual[$index]}" == "${expected[$index]}" ]] || {
+              printf 'Unexpected payload part at index %s: %s\n' "$index" "${actual[$index]}" >&2
+              exit 1
+            }
+          done
 
-      - name: Verify and extract reviewed snapshot payload
-        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
-        shell: bash
-        env:
-          SNAPSHOT_SHA256: 320c33570a82cae554f5de184a527abd209647c06bc66a379647bb1efcfe5f10
-        run: |
-          set -Eeuo pipefail
-          shopt -s nullglob
-          parts=(.bootstrap/arkadium-snapshot/part-*)
           payload="$RUNNER_TEMP/arkadium-adapter-snapshot.tgz"
-          cat "${parts[@]}" | base64 --decode > "$payload"
+          : > "$payload"
+          for part in "${expected[@]}"; do
+            base64 --decode "$part" >> "$payload"
+          done
           printf '%s  %s\n' "$SNAPSHOT_SHA256" "$payload" | sha256sum --check --strict
 
           while IFS= read -r path; do
@@ -92,7 +79,6 @@ jobs:
               */../*|*/./*) printf 'Unsafe archive path: %s\n' "$path" >&2; exit 1 ;;
             esac
           done < <(tar -tzf "$payload")
-
           if tar -tvzf "$payload" | awk '$1 ~ /^l/ { found=1 } END { exit(found ? 0 : 1) }'; then
             echo 'Snapshot archive contains a symbolic link.' >&2
             exit 1
@@ -103,7 +89,6 @@ jobs:
           test -f vendor/arkadium-platform/SOURCE_EXPORT.md
 
       - name: Pin exact runtime and build dependencies
-        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -116,12 +101,10 @@ jobs:
           pkg.devDependencies = sort({ ...(pkg.devDependencies ?? {}), typescript: '6.0.3', vite: '8.1.5' });
           writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
           NODE
-
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Generate dependency license and integrity inventory
-        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
+      - name: Generate direct dependency inventory
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -129,41 +112,30 @@ jobs:
           const { readFileSync, writeFileSync } = require('node:fs');
           const directPackages = ['@arkadiuminc/sdk', 'typescript', 'vite'];
           const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          const text = (value) => String(value ?? 'Not declared').replaceAll('|', '\\|').replaceAll('\n', ' ');
           const lines = [
-            '# Direct Dependency Inventory',
-            '',
-            'Generated from the exact packages installed by this candidate. Values are copied from package metadata and `package-lock.json`; missing metadata is reported, never invented.',
-            '',
+            '# Direct Dependency Inventory', '',
+            'Generated from installed package metadata and the exact npm lock. Missing metadata is reported, never invented.', '',
             '| Package | Version | License | Repository | Lock integrity |',
             '|---|---:|---|---|---|',
           ];
-          const text = (value) => String(value ?? 'Not declared').replaceAll('|', '\\|').replaceAll('\n', ' ');
           for (const name of directPackages) {
-            const packagePath = `node_modules/${name}/package.json`;
-            const metadata = JSON.parse(readFileSync(packagePath, 'utf8'));
+            const metadata = JSON.parse(readFileSync(`node_modules/${name}/package.json`, 'utf8'));
             const locked = lock.packages?.[`node_modules/${name}`] ?? {};
-            const repository = typeof metadata.repository === 'string'
-              ? metadata.repository
-              : metadata.repository?.url;
+            const repository = typeof metadata.repository === 'string' ? metadata.repository : metadata.repository?.url;
             lines.push(`| \`${text(name)}\` | \`${text(metadata.version)}\` | ${text(metadata.license)} | ${text(repository)} | \`${text(locked.integrity)}\` |`);
           }
-          lines.push(
-            '',
-            '## Adapter provenance',
-            '',
+          lines.push('', '## Adapter provenance', '',
             '- Source repository: `646826/arkadium-game-factory`',
             '- Source commit: `020d3177a746f1fdd494a90bbd13d435e5905225`',
             '- Official Arkadium SDK: `2.66.2`',
             '- Source export workflow run: `31330517257`',
             '- Source export artifact: `9042779900`',
-            '- Source archive SHA-256: `31c29a8f99b7157469684776bb6196b8b542a87dba502a5f22c0c10f943ed38e`',
-            '',
-          );
+            '- Source archive SHA-256: `31c29a8f99b7157469684776bb6196b8b542a87dba502a5f22c0c10f943ed38e`', '');
           writeFileSync('vendor/arkadium-platform/LICENSES.md', `${lines.join('\n')}\n`);
           NODE
 
-      - name: Verify snapshot, lock, and complete repository
-        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
+      - name: Verify snapshot, lock, and repository
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -183,7 +155,6 @@ jobs:
           npm run verify
 
       - name: Commit verified source snapshot and lock
-        if: env.HAS_SNAPSHOT_PAYLOAD == 'true'
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -193,12 +164,10 @@ jobs:
           git add package.json package-lock.json vendor/arkadium-platform
           git add -u -- .bootstrap/arkadium-snapshot
           git diff --cached --check
-
           unexpected="$(git diff --cached --name-only | grep -Ev '^(package\.json|package-lock\.json|vendor/arkadium-platform/|\.bootstrap/arkadium-snapshot/)' || true)"
           if [[ -n "$unexpected" ]]; then
             printf 'Unexpected staged paths:\n%s\n' "$unexpected" >&2
             exit 1
           fi
-
           git commit -m 'build: vendor reviewed Arkadium adapter snapshot'
           git push origin HEAD:build/vendor-arkadium-adapter
