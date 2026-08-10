@@ -1,0 +1,360 @@
+{
+  "schemaVersion": 1,
+  "package": {
+    "name": "@arkadiuminc/sdk",
+    "version": "2.66.2",
+    "types": "dist/pkg/loader.d.ts"
+  },
+  "dependencySpecifier": "2.66.2",
+  "registry": {
+    "version": "2.66.2",
+    "integrity": "sha512-CAGoz2gi0Db3mIDUThrp27LXpo+TYdrrLhJ4lScYg7MKtbC5VNoPU+7YBo6ng9e9oJzqKdiPOiVcpXwJvrzktw==",
+    "tarball": "https://registry.npmjs.org/@arkadiuminc/sdk/-/sdk-2.66.2.tgz"
+  },
+  "declarationCount": 68,
+  "normalizedBytes": 82765,
+  "declarations": [
+    {
+      "path": "dist/pkg/api/core/config-service.d.ts",
+      "bytes": 6309,
+      "sha256": "b183cc2eac1214319ad9ed4554deb55417dabd72be0031c146deff0a14a43a5d"
+    },
+    {
+      "path": "dist/pkg/api/core/config-service.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/core/debug-provider.d.ts",
+      "bytes": 957,
+      "sha256": "56e7e71369bbb1ead2d7c6d8e0200f76bbaa8acd657dd59a63ad43c95394daa2"
+    },
+    {
+      "path": "dist/pkg/api/core/logger.d.ts",
+      "bytes": 496,
+      "sha256": "c589149bb5eacc856211041adea7985f25d1afdd15c1394ab8a49a7b148e6521"
+    },
+    {
+      "path": "dist/pkg/api/core/rpc.d.ts",
+      "bytes": 1133,
+      "sha256": "ff8c5e5507fa2c5b7b870250091cff980f2d8460e7d020c1fe474f3a1910cdfd"
+    },
+    {
+      "path": "dist/pkg/api/core/timeout-tester.d.ts",
+      "bytes": 394,
+      "sha256": "36fff65d7a03b0284fa94cc8e7ee1468c0949acae9b0002014f92e48dfbf3a8b"
+    },
+    {
+      "path": "dist/pkg/api/features/ads/__mocks__/display-ad.d.ts",
+      "bytes": 809,
+      "sha256": "c06fcc670b92801bd845364aa356f1f2e8dc71b635db91b06d581d389d1e740b"
+    },
+    {
+      "path": "dist/pkg/api/features/ads/__mocks__/video-ad.d.ts",
+      "bytes": 896,
+      "sha256": "104a68d875f843a4f4f7321c9e0f45439c538a5f21abe691adb16af12ed144a6"
+    },
+    {
+      "path": "dist/pkg/api/features/ads/ads.mocks.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/ads/display-ad.d.ts",
+      "bytes": 916,
+      "sha256": "4b8ed7af6e1f1b127ed099c35d035cf388702d5b34fe78ede2c8cd18b39334cd"
+    },
+    {
+      "path": "dist/pkg/api/features/ads/index.d.ts",
+      "bytes": 2456,
+      "sha256": "7c43806739746d864c8e0f977e239b2d27cabe5f2f9a72cf1d02e44d5789b065"
+    },
+    {
+      "path": "dist/pkg/api/features/ads/index.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/ads/video-ad.d.ts",
+      "bytes": 846,
+      "sha256": "14522c0885dd3c4f7c9a6cac7f56800d4399bd6495ecba8c01d211c8bb86293d"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/analytics.api.d.ts",
+      "bytes": 10797,
+      "sha256": "1bea48fa0fb8721bd7a36c70da76d8d1c672426fcf00e72ce12ee815b992f477"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/analytics.api.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/defs.d.ts",
+      "bytes": 263,
+      "sha256": "9432de5d6d4cee630b5a34b00620e283ae11551f24f547ff58807f6c25a3f3f5"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/dimensions.d.ts",
+      "bytes": 1974,
+      "sha256": "9587d69d34fddced1b08de28d0dde6b8c2e147bf9607c5104f0a6fe909de7080"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/events.d.ts",
+      "bytes": 1132,
+      "sha256": "f8e65fc1519c5956e3ab15df6bee5d184f5e41b6de8237ae8a068f8e045ef8a3"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/providers/AnalyticsProvider.d.ts",
+      "bytes": 1436,
+      "sha256": "4bc625199cab83bed08ab0913320c1e4e8f41e178bb137a01af25d3bebb4b9f0"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/providers/AppInsightsProvider.d.ts",
+      "bytes": 1499,
+      "sha256": "41d590f421f844786c519fc7f8d8f8805ad3d2c46797dab04775f2437a7269b8"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/providers/AppInsightsProvider.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/providers/ConsoleProvider.d.ts",
+      "bytes": 835,
+      "sha256": "19d2d284bcb5e761cc7acdc28ddb2a89cc8c77e18ee2829ccccb82121149555e"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/providers/ConsoleProvider.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/analytics/providers/lazyLoad.d.ts",
+      "bytes": 62,
+      "sha256": "5b4a9d2cdf077f29afd51c3bc69191e72491964b4a6d83c3a82971c085464915"
+    },
+    {
+      "path": "dist/pkg/api/features/auth/index.d.ts",
+      "bytes": 2040,
+      "sha256": "f6be84405b563aa85e819b6f63d4187e6e882c2482fe26a1cf5ad92b6d4616c5"
+    },
+    {
+      "path": "dist/pkg/api/features/backend/aarp-session-storage.d.ts",
+      "bytes": 969,
+      "sha256": "5647b2aa9b14ba5a2e520825fe2c9831198600451ea77920517ae40fccb4ccd0"
+    },
+    {
+      "path": "dist/pkg/api/features/backend/backend.api.d.ts",
+      "bytes": 1817,
+      "sha256": "c2e0e02b927343fcf5e4f1252d031574f00ba457458faf0dbb84c57f1e0e7a54"
+    },
+    {
+      "path": "dist/pkg/api/features/chat/index.d.ts",
+      "bytes": 4581,
+      "sha256": "2c4cecc387c0daf1d5a68b670b2825cf08144a2e679968be6fcc19258c560596"
+    },
+    {
+      "path": "dist/pkg/api/features/chat/index.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/friends/index.d.ts",
+      "bytes": 3604,
+      "sha256": "57e5023c337b2394257b64d8a07c157024414a51d1a1f5531a940f9412481107"
+    },
+    {
+      "path": "dist/pkg/api/features/friends/index.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/game-lifecycle/game-lifecycle.api.d.ts",
+      "bytes": 2864,
+      "sha256": "23b9799b3f0991df930eee2150fe733843564017561d252ee1c2b25ccfb70205"
+    },
+    {
+      "path": "dist/pkg/api/features/game-lifecycle/game-lifecycle.api.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/host/index.d.ts",
+      "bytes": 4222,
+      "sha256": "de407dd1d1e14aa3e73ff3f0107acb76561b3cc88068b3b6374a0e4edd5efdd9"
+    },
+    {
+      "path": "dist/pkg/api/features/host/index.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/leaderboard/index.d.ts",
+      "bytes": 1504,
+      "sha256": "7fb5fec87c4fb2541f5b17b7280d249bc2e21002d2d404d5a6eb7277d1e70bb9"
+    },
+    {
+      "path": "dist/pkg/api/features/leaderboard/index.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/nakama/nakama-provider.d.ts",
+      "bytes": 2098,
+      "sha256": "33aacec0874084de87c41b0adb3c0c692bd67f525b79bc66a63d47ad81089bd2"
+    },
+    {
+      "path": "dist/pkg/api/features/nakama/nakama-provider.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/nakama/nakama-service.d.ts",
+      "bytes": 358,
+      "sha256": "f5d0453d178e8deca42d9029e36c22035d0bdf3ac21eabaa24d54922fa6ea124"
+    },
+    {
+      "path": "dist/pkg/api/features/notifications/index.d.ts",
+      "bytes": 1762,
+      "sha256": "1595241f856e4b07e4ff04e260edd9a51e86310f0dab8bfbf2e6436a6c941619"
+    },
+    {
+      "path": "dist/pkg/api/features/persistence/index.d.ts",
+      "bytes": 2378,
+      "sha256": "1ceb2104bdc336d3ad95e30297ce14bdc79fd2477e5cc4bcbb69601fde6b086b"
+    },
+    {
+      "path": "dist/pkg/api/features/persistence/index.test.d.ts",
+      "bytes": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "dist/pkg/api/features/ratings/index.d.ts",
+      "bytes": 1169,
+      "sha256": "7b414814c061a8362dc67b3428667e70af43cc765ec18aadd01e6e7e8f396c4d"
+    },
+    {
+      "path": "dist/pkg/api/features/ratings/index.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/recorder/index.d.ts",
+      "bytes": 970,
+      "sha256": "840091a7e93fe1a655b1f8c96080a5e54dc2c376db310325c58f580f1b7b0fee"
+    },
+    {
+      "path": "dist/pkg/api/features/support-v1/game-state/game-state.api.d.ts",
+      "bytes": 1251,
+      "sha256": "b629b2cec7a31ffb0fa9c6a951e401c8afe18ecf732e55e882044856b1f5b714"
+    },
+    {
+      "path": "dist/pkg/api/features/support-v1/support-v1.d.ts",
+      "bytes": 299,
+      "sha256": "bb53510ac47bebb4200924229b6dd00e1d99a61a238fd4371d60c8367b362a14"
+    },
+    {
+      "path": "dist/pkg/api/features/tournaments/index.d.ts",
+      "bytes": 3058,
+      "sha256": "bbdc88b407f8a61b7b1bfbfc662e90973b386bda14e7b2c101fd9d69c7efbccc"
+    },
+    {
+      "path": "dist/pkg/api/features/tournaments/tournaments.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/features/wallet/index.d.ts",
+      "bytes": 3773,
+      "sha256": "5659a3987047cf4ffa62c3082c69a2481a073001b21ee7e2711286c60ba8856d"
+    },
+    {
+      "path": "dist/pkg/api/features/wallet/index.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/interface.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/utils/async-queue.d.ts",
+      "bytes": 159,
+      "sha256": "84a0876443f437f7d295e951251554059b60b1c8a92214b13e4d7c52a5dc097b"
+    },
+    {
+      "path": "dist/pkg/api/utils/async-queue.test.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/pkg/api/utils/deferred.d.ts",
+      "bytes": 165,
+      "sha256": "5588aee32aafb9861a4848c2538f7ae6a4f89e2b55201a689ed1428925f14bd1"
+    },
+    {
+      "path": "dist/pkg/api/utils/fetch.d.ts",
+      "bytes": 76,
+      "sha256": "65f7bc11252ff14d078119fe40818d517627c0b16f01cb2e5e3fec489db548b4"
+    },
+    {
+      "path": "dist/pkg/api/utils/indexed-db-storage.d.ts",
+      "bytes": 656,
+      "sha256": "fc862ed5f2411cfd0889cb8b3807bc5d2ce119e474e205ba37f4d21d6fbf2270"
+    },
+    {
+      "path": "dist/pkg/api/utils/indexed-db-storage.test.d.ts",
+      "bytes": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "dist/pkg/api/utils/mockUser.d.ts",
+      "bytes": 720,
+      "sha256": "69f1794bf8662234b8912fe745ffe5bdea9a291d5417d088f2b46303bfe68ae6"
+    },
+    {
+      "path": "dist/pkg/api/utils/observable.d.ts",
+      "bytes": 462,
+      "sha256": "5ea8d392fa4f92a684856becb9ed1cc0df19cebb33a6a0f17aa14d5d6c50f307"
+    },
+    {
+      "path": "dist/pkg/api/utils/promise-retry.d.ts",
+      "bytes": 142,
+      "sha256": "e81bec8528837aa3f940cecddaf3e834d730518b9b2de6417cf5a27769616758"
+    },
+    {
+      "path": "dist/pkg/api/utils/validate-input.d.ts",
+      "bytes": 1962,
+      "sha256": "aba826c6768c07ff8848092ade041b878051a64e26e54448e10aa9c9eb08b5ef"
+    },
+    {
+      "path": "dist/pkg/api/version.d.ts",
+      "bytes": 63,
+      "sha256": "c46d28a8cdf9032b40cc37884fc749acaf8aa0ba0421feff2188a8abf27d2733"
+    },
+    {
+      "path": "dist/pkg/arkadium-arena-sdk.d.ts",
+      "bytes": 3302,
+      "sha256": "5dab4fe0c2a0a67786b834db7abf4b9f06012867128bd810dd93b792b369b44a"
+    },
+    {
+      "path": "dist/pkg/arkadium-game-sdk.d.ts",
+      "bytes": 2452,
+      "sha256": "3c9c4f7e6e11b572f3dcda52ffe5c430acd6ebca1d6ce133ce8670eee0da013c"
+    },
+    {
+      "path": "dist/pkg/loader.d.ts",
+      "bytes": 253,
+      "sha256": "fd7f413e8bb59ff007b723eeee9f93219e427e93b183c6008f505a42f3e1b230"
+    },
+    {
+      "path": "dist/pkg/ping.module.d.ts",
+      "bytes": 237,
+      "sha256": "217c2a213a9558da22de60454a08e912e65a53727ebf690b379d5b20170bf0c6"
+    }
+  ],
+  "combinedSha256": "fbca385a575e4b8cab8023a06b81f25424cae433d64b9941b523d78d994c9f83",
+  "snapshotSha256": "c23711eaa4b35b3161e91d8ea9f08d7d55ebc10785fc389de05495a1522806f4"
+}

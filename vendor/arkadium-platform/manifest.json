@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "646826/arkadium-game-factory",
+  "sourceCommit": "020d3177a746f1fdd494a90bbd13d435e5905225",
+  "sdkVersion": "2.66.2",
+  "files": {
+    "source/packages/platform-arkadium/package.json": "d959e322eb8b1f3e9cb66040f9e998c2d7080177926e194ad03d15fc80c31438",
+    "source/packages/platform-arkadium/sdk/README.md": "d4bb99398957a781740f68ab117b94a388eb76cf0297ec260fff1e24a4b9214f",
+    "source/packages/platform-arkadium/sdk/manifest.json": "34ac2bbec8fc9729d259a9fec5bc38bad87b18f91cffb082cbef908f9828d90e",
+    "source/packages/platform-arkadium/sdk/public-api.snapshot.txt": "c23711eaa4b35b3161e91d8ea9f08d7d55ebc10785fc389de05495a1522806f4",
+    "source/packages/platform-arkadium/src/ArkadiumAdvertisingService.ts": "b4bc5034377b24dfe44ea7fae4704f43fc42bee5fe2bddba9bd8ecf94e6773e5",
+    "source/packages/platform-arkadium/src/ArkadiumAnalyticsService.ts": "4e52957463406541c448cbde903f7baed1acc12bf58b0c9138ab8e2c52170f4d",
+    "source/packages/platform-arkadium/src/ArkadiumLeaderboardService.ts": "054af737862d2ea310dc6ce7fcab83674c05324127b539ac298d4982a596f5ef",
+    "source/packages/platform-arkadium/src/ArkadiumPersistenceService.ts": "230c6b5737cff11329028f132d16dc5482ebedc3690f1cef5e99e2df76cd2d50",
+    "source/packages/platform-arkadium/src/ArkadiumRpcDiagnostics.ts": "d3850a92848c20a8a35226f9e176fe956decc601c51d55cb69a2d63c8ffd0b68",
+    "source/packages/platform-arkadium/src/ArkadiumSerializable.ts": "988adf03213ddd6738aa11a0d21defd57ae70c3789f8b41209b3d8e9af19c7c1",
+    "source/packages/platform-arkadium/src/ArkadiumWalletService.ts": "7269c51bcde0466d537f509023efa412f3b9bde35aaeddeeb59e877b499042b3",
+    "source/packages/platform-arkadium/src/ArkadiumWalletTransactionLedger.ts": "09122fb7c4dfbbbebc4cb1f240722caa724e277a835c329def09abff2df2eb41",
+    "source/packages/platform-arkadium/src/OfficialArkadiumSdkBridge.ts": "0862b4f31dca802e9f2eb6f8c7b8ece1bd7c1111e98f049208b0dc4877020d4b",
+    "source/packages/platform-arkadium/src/index.ts": "f7d18d8dfe006962976f042a901f7e9f1d7c31fa7ab8e62f0e33c27fd1e3d5b9",
+    "source/packages/platform-arkadium/src/official-sdk.ts": "86974078a7174ef65b8a7993f9ff3fab827468348016082ab23993b8418880f0",
+    "source/packages/platform-contract/src/index.ts": "f17297b4db6424f6f678392b59a06af704c47d24cf7a024cbfc2c9a76e82f9bc",
+    "source/packages/platform-contract/src/lifecycle.ts": "2f2fefb23debeea6ad634f92698a390930b8f0d2bf9631a310b136dbe8ecbb4e",
+    "source/packages/platform-contract/src/redaction.ts": "3d9f15617be1f1696ea0d567a8783bb680a59a57427d0017e124ca2ec5f47245",
+    "source/packages/platform-contract/src/result.ts": "2d28d166fa59af2243150692ab993e35ae7efa1cc4676b5b233b10825e18a464",
+    "source/packages/platform-contract/src/serialization.ts": "8f41e00d3aa82e5359308e7fb951ea9a3bed470fac8ea4fda4ca3f4cbcf3f675",
+    "source/packages/platform-contract/src/types.ts": "3d0ec62d37e78c0fd12ffe32506c82f048c5948f360a9921ff009c5715bb2c16"
+  }
+}

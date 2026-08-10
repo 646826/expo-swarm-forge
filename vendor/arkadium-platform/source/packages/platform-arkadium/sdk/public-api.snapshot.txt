@@ -1,0 +1,2403 @@
+===== dist/pkg/api/core/config-service.d.ts =====
+import { default as defaultConfig } from '../../config.json';
+import { IHost } from '../features/host';
+
+export { defaultConfig };
+export declare type AdsConfig = {
+    isEnabled: boolean;
+    gameIdChanged: boolean;
+    adTypes?: string[];
+    cooldown?: number;
+};
+declare type LifecycleEventConfig = {
+    gamesBlacklist: string[];
+};
+interface ConfigSchema {
+    host: {
+        supportsSubscriptions: string[];
+    };
+    nakama: {
+        isEnabled: boolean;
+        envs: string[];
+        debugMode: boolean;
+    };
+    config: {
+        refreshInterval: number;
+    };
+    lifecycle: Record<string, LifecycleEventConfig>;
+    ads: {
+        isEnabled: boolean;
+        configs: Array<{
+            conditions: string;
+            config: {
+                adTypes: string[];
+                isEnabled: boolean;
+                cooldown?: never;
+            } | {
+                adTypes: string[];
+                isEnabled?: never;
+                cooldown: number;
+            };
+        }>;
+    };
+}
+export declare const schema: {
+    type: string;
+    properties: {
+        host: {
+            type: string;
+            properties: {
+                supportsSubscriptions: {
+                    type: string;
+                    items: {
+                        type: string;
+                    };
+                };
+            };
+            required: string[];
+            additionalProperties: boolean;
+        };
+        nakama: {
+            type: string;
+            properties: {
+                isEnabled: {
+                    type: string;
+                };
+                envs: {
+                    type: string;
+                    items: {
+                        type: string;
+                    };
+                };
+                debugMode: {
+                    type: string;
+                };
+            };
+            required: string[];
+            additionalProperties: boolean;
+        };
+        config: {
+            type: string;
+            properties: {
+                refreshInterval: {
+                    type: string;
+                };
+            };
+            required: string[];
+            additionalProperties: boolean;
+        };
+        lifecycle: {
+            type: string;
+            patternProperties: {
+                ".*": {
+                    type: string;
+                    properties: {
+                        gamesBlacklist: {
+                            type: string;
+                            items: {
+                                type: string;
+                            };
+                        };
+                    };
+                    required: string[];
+                    additionalProperties: boolean;
+                };
+            };
+            additionalProperties: boolean;
+        };
+        ads: {
+            type: string;
+            properties: {
+                isEnabled: {
+                    type: string;
+                };
+                configs: {
+                    type: string;
+                    items: {
+                        type: string;
+                        properties: {
+                            conditions: {
+                                type: string;
+                            };
+                            config: {
+                                type: string;
+                                oneOf: ({
+                                    required: string[];
+                                    properties: {
+                                        adTypes: {
+                                            type: string;
+                                            items: {
+                                                type: string;
+                                            };
+                                        };
+                                        isEnabled: {
+                                            type: string;
+                                        };
+                                        cooldown: boolean;
+                                    };
+                                    additionalProperties: boolean;
+                                } | {
+                                    required: string[];
+                                    properties: {
+                                        adTypes: {
+                                            type: string;
+                                            items: {
+                                                type: string;
+                                            };
+                                        };
+                                        isEnabled: boolean;
+                                        cooldown: {
+                                            type: string;
+                                        };
+                                    };
+                                    additionalProperties: boolean;
+                                })[];
+                            };
+                        };
+                        required: string[];
+                        additionalProperties: boolean;
+                    };
+                };
+            };
+            required: string[];
+            additionalProperties: boolean;
+        };
+    };
+    required: string[];
+    additionalProperties: boolean;
+};
+declare type ConfigChangeCallback = (config: ConfigSchema) => void;
+export declare class ConfigService {
+    private _validate;
+    private _config;
+    private static _instance;
+    private _isLoaded;
+    private _refreshTimer;
+    private _configChangeCallbacks;
+    private _gameId;
+    private _platformId;
+    private _platformType;
+    private _host;
+    private _gameConfig;
+    private constructor();
+    static get Instance(): ConfigService;
+    subscribe(callback: ConfigChangeCallback): () => void;
+    private notifyConfigChange;
+    init(host?: IHost): Promise<void>;
+    loadConfig(): Promise<void>;
+    get config(): ConfigSchema;
+    dispose(): void;
+    getConfigForProperty(property: string): any;
+    private tokenize;
+    private parseExpression;
+    private evaluateAST;
+    private evaluateCondition;
+    private isDebugMode;
+    private isPlatform;
+    private isPlatformType;
+    private isGame;
+    setGameConfig(gameConfig: any): void;
+    getGameConfigProperty(property: string, defaultValue?: any): any;
+}
+
+===== dist/pkg/api/core/config-service.test.d.ts =====
+export {};
+
+===== dist/pkg/api/core/debug-provider.d.ts =====
+import { ObserverFn } from '../utils/observable';
+
+export interface DebugProvider {
+    isDebugMode?(): boolean;
+    setDebugMode?(isEnabled: boolean): void;
+    sendDebugEvent(type: string, ...args: any[]): void;
+    onDebugEvent?(observer: any): void;
+}
+export declare function isDebugMode(): boolean;
+export declare class DebugProviderArena implements DebugProvider {
+    private static _instance;
+    private observers;
+    private isDebug;
+    private constructor();
+    static get Instance(): DebugProviderArena;
+    private initDebugMode;
+    isDebugMode(): boolean;
+    setDebugMode(isEnabled: boolean): void;
+    sendDebugEvent(type: string, ...args: any[]): void;
+    onDebugEvent(observer: ObserverFn<string>): void;
+}
+export declare class DebugProviderGame implements DebugProvider {
+    private static _instance;
+    private constructor();
+    static get Instance(): DebugProviderGame;
+    sendDebugEvent(type: string, ...args: any[]): void;
+}
+
+===== dist/pkg/api/core/logger.d.ts =====
+export declare function initializationLog(name: string, params?: any): void;
+export declare function rpcRequest(name: string, module: string, parameters: any): void;
+export declare function rpcResponseSending(name: string, fileName: string, parameters: any, result: any): void;
+export declare function rpcResponse(cbId: string): void;
+export declare function rpcMissingResponse(cbId: string): void;
+export declare function rpcFailed(name: string, module: string, payload: any, error: any): void;
+
+===== dist/pkg/api/core/rpc.d.ts =====
+declare type RpcRequest = {
+    module: string;
+    func: string;
+    payload: any[];
+    executionTimeLimitMs?: number;
+};
+export declare const EXECUTION_TIME_NO_LIMIT = -1;
+declare class RpcPublisher {
+    private rpcCallbacks;
+    private target;
+    private eventListener;
+    init(target: any): void;
+    sendMessage(message: RpcRequest): Promise<any>;
+    unsubscribe(): void;
+    private genId;
+    private processMessages;
+    private registerCb;
+    private unregisterCB;
+}
+declare class RpcSubscriber {
+    private eventListener;
+    constructor();
+    private registry;
+    private target;
+    init(target: any): void;
+    addToRegistry(module: string, name: string, bindTo: any, fn: any): void;
+    unsubscribe(): void;
+    private getId;
+    private processMessages;
+    private sendResponse;
+    private sendError;
+}
+export declare function shouldSubscribe(name: string, value: any): boolean;
+/** @hidden */
+export declare class RpcProvider {
+    private static _instance;
+    rpcPublisher: RpcPublisher;
+    rpcSubscriber: RpcSubscriber;
+    private constructor();
+    static get Instance(): RpcProvider;
+}
+export {};
+
+===== dist/pkg/api/core/timeout-tester.d.ts =====
+import { RpcProvider } from './rpc';
+
+export interface TimeoutTesterContract {
+    timeout(): Promise<void>;
+}
+/** @hidden */
+export declare class TimeoutTester {
+    constructor(rpcProvider: RpcProvider);
+    timeout(): Promise<void>;
+}
+/** @hidden */
+export declare class TimeoutTesterProxy {
+    private rpcProvider;
+    constructor(rpcProvider: RpcProvider);
+    timeout(): Promise<any>;
+}
+
+===== dist/pkg/api/features/ads/__mocks__/display-ad.d.ts =====
+export declare type BannerAdOptions = {
+    id: string;
+    dimensions: AdTypes[];
+    dataId?: string;
+    product?: string;
+    onAdShow?: () => void;
+};
+export declare enum AdTypes {
+    AD_300x250 = "AD_300x250",
+    AD_250x250 = "AD_250x250",
+    AD_336x280 = "AD_336x280",
+    AD_300x600 = "AD_300x600",
+    AD_728x90 = "AD_728x90",
+    AD_768x90 = "AD_768x90",
+    AD_970x90 = "AD_970x90",
+    AD_970x250 = "AD_970x250",
+    AD_320x50 = "AD_320x50",
+    AD_320x100 = "AD_320x100",
+    AD_468x60 = "AD_468x60",
+    AD_160x600 = "AD_160x600"
+}
+/** @hidden */
+export declare class DisplayAd {
+    static getInstance(): DisplayAd;
+    protected _scriptLoaded: Promise<void>;
+    private ads;
+    constructor();
+    private matchAdSize;
+    removeAllAds(): void;
+    show(options: BannerAdOptions): void;
+}
+
+===== dist/pkg/api/features/ads/__mocks__/video-ad.d.ts =====
+import { ApiEnv } from '../../backend/backend.api';
+
+/** @hidden */
+export declare class VideoAd {
+    static getInstance(): VideoAd;
+    protected _scriptLoaded: Promise<void>;
+    protected timer: any;
+    constructor();
+    preroll({ duration, env, product }: {
+        duration?: number | undefined;
+        env?: ApiEnv | undefined;
+        product?: string | undefined;
+    }): Promise<void>;
+    interstitial({ duration, env, product }: {
+        duration?: number | undefined;
+        env?: ApiEnv | undefined;
+        product?: string | undefined;
+    }): Promise<void>;
+    rewarded({ duration, env, product }: {
+        duration?: number | undefined;
+        env?: ApiEnv | undefined;
+        product?: string | undefined;
+    }): Promise<void>;
+    protected render({ duration, env, product }: {
+        duration: any;
+        env: any;
+        product: any;
+    }): Promise<void>;
+}
+
+===== dist/pkg/api/features/ads/ads.mocks.d.ts =====
+export {};
+
+===== dist/pkg/api/features/ads/display-ad.d.ts =====
+export declare type BannerAdOptions = {
+    id: string;
+    dimensions: AdTypes[];
+    dataId?: string;
+    product?: string;
+    onAdShow?: () => void;
+};
+export declare enum AdTypes {
+    AD_300x250 = "AD_300x250",
+    AD_250x250 = "AD_250x250",
+    AD_336x280 = "AD_336x280",
+    AD_300x600 = "AD_300x600",
+    AD_728x90 = "AD_728x90",
+    AD_768x90 = "AD_768x90",
+    AD_970x90 = "AD_970x90",
+    AD_970x250 = "AD_970x250",
+    AD_320x50 = "AD_320x50",
+    AD_320x100 = "AD_320x100",
+    AD_468x60 = "AD_468x60",
+    AD_160x600 = "AD_160x600"
+}
+/** @hidden */
+export declare class DisplayAd {
+    private static domain;
+    private static url;
+    static getInstance(domain?: string, url?: string): DisplayAd;
+    protected _scriptLoaded: Promise<void>;
+    private ads;
+    constructor(domain: string, url: string);
+    private matchAdSize;
+    removeAllAds(): void;
+    show(options: BannerAdOptions): void;
+}
+
+===== dist/pkg/api/features/ads/index.d.ts =====
+import { RpcProvider } from '../../core/rpc';
+import { ApiEnv } from '../backend/backend.api';
+import { Auth } from '../auth/';
+import { VideoAdOptions } from './video-ad';
+import { BannerAdOptions, AdTypes } from './display-ad';
+import { GameLifecycleArena, GameLifecycleGame } from '../game-lifecycle/game-lifecycle.api';
+import { IHost } from '../host';
+
+export declare type ShowInterstitialAdOptions = {
+    duration?: number;
+};
+export declare type ShowRewardAdOptions = {
+    duration?: number;
+    context?: 'core' | 'default';
+    data?: any;
+};
+/** @hidden */
+export interface AdsArena extends Ads, AdsArenaBanner {
+}
+export interface AdsGame extends Ads, AdsGameBanner {
+}
+interface Ads {
+    showPrerollAd?(options: VideoAdOptions): Promise<void>;
+    showInterstitialAd(options: VideoAdOptions): Promise<void>;
+    showRewardAd(options: VideoAdOptions): Promise<{
+        value: number;
+    }>;
+}
+interface AdsArenaBanner {
+    showBannerAd?(options: BannerAdOptions): any;
+}
+interface AdsGameBanner {
+    showBannerAd?(adId: string, dimensions: AdTypes[]): any;
+}
+/** @hidden */
+export declare class AdsArenaProvider implements AdsArena {
+    private host;
+    bannerSizes: typeof AdTypes;
+    private interstitial;
+    private rewarded;
+    private preroll;
+    private banner;
+    constructor(rpcProvider: RpcProvider, auth: Auth, lifecycle: GameLifecycleArena, host: IHost);
+    private setAdErrorHandlingMode;
+    setVideoAdsUrl(url: string): void;
+    setVideoAdsDomain(domain: string): void;
+    setDisplayAdsUrl(url: string): void;
+    setDisplayAdsDomain(domain: string): void;
+    showPrerollAd(options: VideoAdOptions): Promise<void>;
+    showInterstitialAd(options: VideoAdOptions): Promise<void>;
+    showRewardAd(options: VideoAdOptions): Promise<{
+        value: number;
+    }>;
+    showBannerAd(options: BannerAdOptions): any;
+}
+export declare class AdsGameProvider implements AdsGame {
+    private readonly lifecycle;
+    readonly bannerSizes: typeof AdTypes;
+    private readonly interstitial;
+    private readonly rewarded;
+    private readonly banner;
+    constructor(rpcProvider: RpcProvider, env: ApiEnv, auth: Auth, lifecycle: GameLifecycleGame);
+    showInterstitialAd({ duration }?: ShowInterstitialAdOptions): Promise<void>;
+    showRewardAd({ duration, context, data }?: ShowRewardAdOptions): Promise<{
+        value: number;
+    }>;
+    showBannerAd(adId: string, dimensions: AdTypes[]): Promise<void>;
+}
+export {};
+
+===== dist/pkg/api/features/ads/index.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/ads/video-ad.d.ts =====
+import { ApiEnv } from '../backend/backend.api';
+
+export declare type VideoAdOptions = {
+    env?: ApiEnv;
+    duration?: number;
+    product?: string;
+    adPodding?: boolean;
+    keyvalues?: Record<string, string>;
+    position?: 'pre-roll' | 'reward' | 'interstitial';
+};
+/** @hidden */
+export declare class VideoAd {
+    private static domain;
+    private static url;
+    private _isShowing;
+    static getInstance(domain?: string, url?: string): VideoAd;
+    protected _scriptLoaded: Promise<void>;
+    constructor(domain: string, url: string);
+    preroll(options: VideoAdOptions): Promise<void>;
+    interstitial(options: VideoAdOptions): Promise<void>;
+    rewarded(options: any): Promise<void>;
+    isShowing(): boolean;
+    protected render({ duration, env, product, position, keyvalues, adPodding }?: VideoAdOptions): Promise<void>;
+}
+
+===== dist/pkg/api/features/analytics/analytics.api.d.ts =====
+import { RpcProvider } from '../../core/rpc';
+import { AnalyticsProviderType, IAnalyticConfig } from './defs';
+import { DimensionsObject, Dimension } from './dimensions';
+import { IHost } from '../host';
+import { DebugProvider } from '../../core/debug-provider';
+import { ApiEnv } from '../backend/backend.api';
+
+interface EnvironmentVersion {
+    GameKey: string;
+    GameVersion: string;
+    NestVersion: string;
+    SdkVersion: string;
+}
+declare type FingerprintData = {
+    [Dimension.fpVisitorId]: string;
+    [Dimension.fpIncognito]: string;
+};
+export interface AnalyticsApiContract {
+    setGameVersion(v: string): Promise<void>;
+    setNestVersion(v: string): Promise<void>;
+    getEnvVersion(): Promise<EnvironmentVersion>;
+    configureProvider(config: IAnalyticConfig): Promise<void>;
+    sendEvent(eventCategory: string, eventAction: string, dimensions: DimensionsObject): Promise<void>;
+    sendPageView(pageName: string, dimensions: DimensionsObject): Promise<void>;
+    trackException(exception: Error): Promise<void>;
+    clearProviders(): void;
+}
+/** @hidden */
+export declare class AnalyticsApi implements AnalyticsApiContract {
+    private host;
+    private rpcProvider;
+    private debugProvider;
+    private arenaEnvironment;
+    private providers;
+    private configuredProviders;
+    private disabledProviders;
+    private info;
+    providersTypes: typeof AnalyticsProviderType;
+    constructor(host: IHost, rpcProvider: RpcProvider, debugProvider: DebugProvider, arenaEnvironment: ApiEnv);
+    getEnvVersion(): Promise<EnvironmentVersion>;
+    setGameVersion(v: string): Promise<void>;
+    setNestVersion(v: string): Promise<void>;
+    sendGameSDKInitEvent(version: string): Promise<void>;
+    configureProvider(config: IAnalyticConfig): Promise<void>;
+    sendEvent(eventCategory: string, eventAction: string, dimensions: DimensionsObject): Promise<void>;
+    sendPageView(pageName: string, dimensions: DimensionsObject): Promise<void>;
+    trackException(error: Error): Promise<void>;
+    setFingerprintData(fingerprintData: FingerprintData): Promise<any>;
+    enableProvider(providerType: AnalyticsProviderType): void;
+    disableProvider(providerType: AnalyticsProviderType): void;
+    clearProviders(): void;
+}
+export declare class AnalyticsApiProxy implements AnalyticsApiContract {
+    private rpcProvider;
+    CONSOLE: AnalyticsProviderType;
+    APP_INSIGHTS: AnalyticsProviderType;
+    GOOGLE: AnalyticsProviderType;
+    private dimensionValues;
+    private fingerprintData;
+    constructor(rpcProvider: RpcProvider);
+    getFingerprintVisitorId(): string;
+    private setFingerprintData;
+    setGameVersion(v: string): Promise<void>;
+    setNestVersion(v: string): Promise<void>;
+    getEnvVersion(): Promise<EnvironmentVersion>;
+    configureProvider(config: IAnalyticConfig): Promise<void>;
+    /**
+     * Low level method to report an analytics event
+     * Likely you can use the helper methods for common events instead.
+     * @param eventCategory {Event}
+     * @param eventAction optional action. values depend on the event category
+     * @param dimensions record with dimensions to report
+     */
+    sendEvent(eventCategory: string, eventAction: string, dimensions: DimensionsObject): Promise<void>;
+    /**
+     * Low level method to report a page view
+     * Likely you can use the helper methods for common page views instead.
+     * @param pageName  the page name to report
+     * @param dimensions record with dimensions to report
+     */
+    sendPageView(pageName: string, dimensions: DimensionsObject): Promise<void>;
+    /**
+     * Use this method to report an exception back to analytics
+     * @param exception {Error} error to capture
+     */
+    trackException(exception: Error): Promise<void>;
+    setDimensions(dimensions: DimensionsObject): void;
+    /**
+     * Start of the Game (after preroll ends)
+     */
+    sendAppStartedEvent(dimensions?: DimensionsObject): void;
+    /**
+     * Loading ended, user can see Start button (after preroll ends)
+     */
+    sendMainScreenReadyEvent(dimensions?: DimensionsObject): void;
+    /**
+     * actions:
+     * User clicked on Start Button [action 'Loaded' if user continued previous game, otherwise New]
+     */
+    sendStartButtonClickedEvent(action: 'New' | 'Loaded', dimensions?: DimensionsObject): void;
+    /**
+     * User sees gameplay and are ready to make action
+     */
+    sendGameplayReadyEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User made first move (any click on the page)
+     */
+    sendFirstMoveEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User entered the first right answer (for word games or trivia games and other applicable games)
+     */
+    sendFirstRightAnswerEvent(dimensions?: DimensionsObject): void;
+    /**
+     * @deprecated
+     * User made first match (for match-3, mahjongg and other applicable games)
+     */
+    sendFirsMatchEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User made first match (for match-3, mahjongg and other applicable games)
+     */
+    sendFirstMatchEvent(dimensions?: DimensionsObject): void;
+    /**
+     * @deprecated
+     * User made first shot (for shooters and other applicable games)
+     */
+    sendFirsShotEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User made first shot (for shooters and other applicable games)
+     */
+    sendFirstShotEvent(dimensions?: DimensionsObject): void;
+    /**
+     * Users started new Round (Level). First round is Round 1 (not 0) (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay)
+     */
+    sendRoundEvent(dimensions?: DimensionsObject): void;
+    /**
+     * actions:
+     * - Finished - User successfully finished the Round (Level). First round is Round 1 (not 0) (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay)
+     * - Not_Finished - User didn't finish the Round (Level) successfully OR leaves the game OR skips the round OR Quit (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay. If possible several lose scenarios, add reason dimension)
+     *
+     * dimensions:
+     * - reason: No_Moves | Time_Out
+     */
+    sendRoundEndEvent(action: 'Finished' | 'Not_Finished', dimensions?: DimensionsObject): void;
+    /**
+     * actions:
+     *
+     * Win - User ended game because he wins (Round in Label only if game has it) (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay)
+     * Lose -User ended game because he loses or faces "No More Moves' situation (Round in Label only if game has it) (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay)
+     * Time_Out - User ended game because he runs of time (Round in Label only if game has it) (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay)
+     * New_Game - User ends game because he starts a new game: click on 'New Game', then click on 'Yes' (Round in Label only if game has it) (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay)
+     * Quit - User ends game because he quits a new game: click on 'Quit', then click on 'Yes' (Round in Label only if game has it) (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay)
+     * Restart - User starts the same game from the beginning again (mostly for Solitaire games): click on 'Restart', then click on 'Yes' (Round in Label only if game has it) (applicable for games with evergreen logic, not infinite games - before Nest changes to gameplay)
+     */
+    sendGameEndEvent(action: 'Win' | 'Lose' | 'Time_Out' | 'New_Game' | 'Quit' | 'Restart', dimensions?: DimensionsObject): void;
+    /**
+     * User clicked on Reshuffle (for mahjonggs and other applicable games)
+     */
+    sendReshuffleEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User meet any type of errors
+     *
+     * expected dimensions:
+     * - reason
+     */
+    sendErrorEvent(dimensions?: DimensionsObject): void;
+    /**
+     * Users comes back from menu and sees the same game session [in games with limited gameplay time only]
+     */
+    sendGameScreenActionsEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User turned sound on/off [for games where sound is a bar, and can be customized (e.g. 1/3 of max) - before Nest]
+     * User turned music on/off [for games where music is a bar, and can be customized to specific position (e.g. 1/3 of max)- before Nest]
+     */
+    sendMenuActionsEvent(action: 'Sound_On' | 'Sound_Off' | 'Music_On' | 'Music_Off', dimensions?: DimensionsObject): void;
+    /**
+     * User turned sound on/off [for games where only on/off option is available - after Nest]
+     */
+    sendSettingsEvent(dimensions?: DimensionsObject): void;
+    /**
+     * Clicks on Help button on Game_Screen or in the menu
+     */
+    sendHelpEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User saw  the help pop up [if it appeared once per gameplay]
+     */
+    sendHelpShownEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User clicks on different button  in help menu [if it appeared once per gameplay]
+     */
+    sendHelpPageEvent(action: 'Next' | 'Prev', dimensions?: DimensionsObject): void;
+    /**
+     * Impression of FUE - tutorial [aplicable for multiple stages tutorial which appear in different places]
+     */
+    sendFUEEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User saw a sign in pop up (before Nest, sent by game. Should be missed if Nest implemented.)
+     * User logged in successfully  (before Nest, sent by game. Should be missed if Nest implemented.)
+     */
+    sendSignInPopUpEvent(action: 'Proposed' | 'Success', dimensions?: DimensionsObject): void;
+    /**
+     * User saw a sign in pop up (after Nest, sent by Nest. Should be missed if Nest not implemented.)
+     */
+    sendSignInClickedEvent(dimensions?: DimensionsObject): void;
+    /**
+     * User logged in successfully (returns with eagle id) (after Nest, sent by Nest. Should be missed if Nest not implemented.)
+     */
+    sendSignInSucceededEvent(dimensions?: DimensionsObject): void;
+    /**
+     * 1st page = page with start button
+     */
+    sendIntroScreenPageView(dimensions?: DimensionsObject): void;
+    /**
+     * Next page after user clicks on Start
+     */
+    sendGameScreenPageView(dimensions?: DimensionsObject): void;
+    /**
+     * Game over page == every game end, except Quit
+     */
+    sendGameOverPageView(dimensions?: DimensionsObject): void;
+    /**
+     * When player manually quits the game
+     */
+    sendQuitConfirmedPageView(dimensions?: DimensionsObject): void;
+    clearProviders(): void;
+}
+export {};
+
+===== dist/pkg/api/features/analytics/analytics.api.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/analytics/defs.d.ts =====
+export declare enum AnalyticsProviderType {
+    CONSOLE = 1,
+    GOOGLE = 2,
+    APP_INSIGHTS = 3,
+    APP_INSIGHTS_SDK = 300,
+    ALL = 1000
+}
+export interface IAnalyticConfig {
+    appId: string;
+    provider: AnalyticsProviderType;
+    providerConfig?: any;
+}
+
+===== dist/pkg/api/features/analytics/dimensions.d.ts =====
+/**
+ * Reference page:
+ * https://arkadium.atlassian.net/wiki/spaces/DepartmentBusinessOperations/pages/23675756/Standardized+Spec+for+every+game+-+GA+AppInsights
+ */
+export declare type DimensionsObject = {
+    [key: string]: any;
+};
+export declare enum Dimension {
+    action = "action",
+    /**
+     * If game has infinite process, use Level dimensions
+     */
+    round = "round",
+    /**
+     *
+     */
+    score = "score",
+    /**
+     *
+     */
+    reason = "reason",
+    /**
+     * Domain, can be affected by iframe
+     */
+    domain = "domain",
+    /**
+     * getArenaName()
+     */
+    trafficSource = "trafficSource",
+    /**
+     * in seconds
+     * where 0 is Level Start|Round Start - should show at that moment from start each event happened
+     */
+    timespent = "timespent",
+    /**
+     *
+     */
+    gameVersion = "gameVersion",
+    /**
+     * If applicable, when test is running
+     */
+    abtestVersion = "abtestVersion",
+    /**
+     *
+     */
+    deviceType = "deviceType",
+    /**
+     *
+     */
+    frameRate = "frameRate",
+    /**
+     * If applicable
+     */
+    difficulty = "difficulty",
+    /**
+     * New - is first session
+     * Returning - otherwise
+     */
+    userType = "userType",
+    /**
+     * Should be sent with every event if possible. if user comes already logged in for ex. if user logs in in the game - start sending after login.
+     */
+    userID = "userID",
+    /**
+     * Should be sent with every event if possible. if user comes already logged in for ex. if user logs in in the game - start sending after login.
+     */
+    userSubscriptionId = "userSubscriptionId",
+    /**
+     * Should be sent with every event if possible. if user comes already logged in for ex. if user logs in in the game - start sending after login.
+     */
+    userSubscriptionPlan = "userSubscriptionPlan",
+    CD1 = "CD1",
+    CD2 = "CD2",
+    CD3 = "CD3",
+    CD4 = "CD4",
+    fpVisitorId = "fpVisitorId",
+    fpIncognito = "fpIncognito"
+}
+
+===== dist/pkg/api/features/analytics/events.d.ts =====
+/**
+ * Reference page:
+ * https://arkadium.atlassian.net/wiki/spaces/DepartmentBusinessOperations/pages/23675756/Standardized+Spec+for+every+game+-+GA+AppInsights
+ */
+export declare enum Event {
+    App_Started = "App_Started",
+    MainScreen_Ready = "MainScreen_Ready",
+    Start_Button_Clicked = "Start_Button_Clicked",
+    Gameplay_Ready = "Gameplay_Ready",
+    First_Move = "First_Move",
+    First_Right_Answer = "First_Right_Answer",
+    First_Match = "First_Match",
+    First_Shot = "First_Shot",
+    Round = "Round",
+    Round_End = "Round_End",
+    Game_End = "Game_End",
+    Reshuffle = "Reshuffle",
+    Error = "Error",
+    Game_Screen_Actions = "Game_Screen_Actions",
+    Menu_Actions = "Menu_Actions",
+    Settings = "Settings",
+    Help = "Help",
+    Help_Shown = "Help_Shown",
+    Help_Page = "Help_Page",
+    FUE = "FUE",
+    SignInPopUp = "SignInPopUp",
+    Sign_In_Clicked = "Sign_In_Clicked",
+    Sign_In_Successed = "Sign_In_Successed",
+    Reward = "Reward",
+    Boost = "Boost",
+    subscriptionBonus = "subscriptionBonus",
+    Gem_Purchase = "Gem_Purchase",
+    Game_Sdk_Initialized = "Game_Sdk_Initialized"
+}
+
+===== dist/pkg/api/features/analytics/providers/AnalyticsProvider.d.ts =====
+import { DimensionsObject } from '../dimensions';
+import { IAnalyticConfig } from '../defs';
+
+declare type EventArr = [string, string, DimensionsObject];
+declare type PageViewArr = [string, DimensionsObject];
+export declare abstract class AnalyticsProvider {
+    protected config: IAnalyticConfig;
+    private isReady;
+    protected unsentEvents: EventArr[];
+    protected unsentPageViews: PageViewArr[];
+    protected unsentExceptions: Error[];
+    constructor(config: IAnalyticConfig);
+    protected setup(): Promise<void>;
+    protected handleUnsent(): void;
+    sendEvent(eventCategory: string, eventAction: string, dimensions: DimensionsObject): void;
+    sendPageView(pageName: string, dimensions: DimensionsObject): void;
+    trackException(exception: Error): void;
+    protected abstract getProviderName(): string;
+    protected abstract sendEventImpl(eventCategory: string, eventAction: string, dimensions: DimensionsObject): void;
+    protected abstract sendPageViewImpl(pageName: string, dimensions: DimensionsObject): void;
+    protected abstract trackExceptionImpl(exception: Error): void;
+    protected debugSendEvent(eventCategory: string, eventAction: string, dimensions: DimensionsObject): void;
+    protected debugSendPageView(pageName: string, dimensions: DimensionsObject): void;
+    protected debugTrackException(exception: Error): void;
+    getProviderType(): import('../defs').AnalyticsProviderType;
+}
+export {};
+
+===== dist/pkg/api/features/analytics/providers/AppInsightsProvider.d.ts =====
+import { DimensionsObject } from '../dimensions';
+import { AnalyticsProvider } from './AnalyticsProvider';
+
+declare global {
+    interface Window {
+        Microsoft: {
+            ApplicationInsights: {
+                ApplicationInsights: any;
+            };
+        };
+    }
+}
+/**
+ * based on game-core-monorepo/packages/engine/src/Analytics/Provider/AppInsightsAnalytic.ts
+ * https://github.com/microsoft/ApplicationInsights-JS
+ * https://www.npmjs.com/package/@microsoft/applicationinsights-web
+ * https://js.monitor.azure.com/scripts/b/ai.3.gbl.min.js
+ */
+/** @hidden */
+export interface IAppInsightConfig {
+    configUrl?: string;
+    defaultSamplingPercentage?: number;
+    selectedDomainsSamplingPercentage?: number;
+}
+/** @hidden */
+export interface ICloudAppInsightConfig {
+    description: string;
+    instrumentationKey: string;
+    defaultSamplingPercentage: number;
+    selectedDomains: string[];
+    selectedDomainsSamplingPercentage: number;
+}
+/** @hidden */
+export declare class AppInsightsProvider extends AnalyticsProvider {
+    private _aiTracker;
+    private _config;
+    getProviderName(): string;
+    protected setup(): Promise<void>;
+    private fetchRemoteJson;
+    private onceLoaded;
+    private validateProperties;
+    sendEventImpl(eventCategory: string, eventAction: string, dimensions: DimensionsObject): void;
+    sendPageViewImpl(pageName: string, dimensions: DimensionsObject): void;
+    trackExceptionImpl(exception: Error): void;
+    private getDefaultConfig;
+}
+
+===== dist/pkg/api/features/analytics/providers/AppInsightsProvider.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/analytics/providers/ConsoleProvider.d.ts =====
+import { DimensionsObject } from '../dimensions';
+import { AnalyticsProvider } from './AnalyticsProvider';
+
+/**
+ * based on game-core-monorepo/packages/engine/src/Analytics/Provider/ConsoleAnalytic.ts
+ */
+/** @hidden */
+export declare class ConsoleProvider extends AnalyticsProvider {
+    getProviderName(): string;
+    protected setup(): Promise<void>;
+    sendEventImpl(eventCategory: string, eventAction: string, dimensions: DimensionsObject): void;
+    sendPageViewImpl(pageName: string, dimensions: DimensionsObject): void;
+    trackExceptionImpl(exception: Error): void;
+    protected debugSendEvent(eventCategory: string, eventAction: string, dimensions: DimensionsObject): void;
+    protected debugSendPageView(pageName: string, dimensions: DimensionsObject): void;
+    protected debugTrackException(exception: Error): void;
+}
+
+===== dist/pkg/api/features/analytics/providers/ConsoleProvider.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/analytics/providers/lazyLoad.d.ts =====
+export declare function lazyLoad(url: string): Promise<void>;
+
+===== dist/pkg/api/features/auth/index.d.ts =====
+import { Backend } from '../backend/backend.api';
+import { createStore } from '../../utils/observable';
+import { RpcProvider } from '../../core/rpc';
+import { IHost } from '../host';
+
+interface Image {
+    png: string;
+    webp: string;
+}
+interface UserProfile {
+    uid: string;
+    username: string;
+    avatar: Image;
+    avatarFrame?: Image;
+    avatarBackground?: string;
+    isUserSubscriber: boolean;
+    aarpMembershipStatus?: boolean;
+    coins?: number;
+    level?: number;
+}
+interface UserProfileReaderContract {
+    authStatus: ReturnType<typeof createStore<boolean>>;
+    isUserAuthorized(): Promise<boolean>;
+    getUserProfile(): Promise<UserProfile | null>;
+    init(): Promise<void>;
+}
+interface AuthUIManagerContract {
+    openAuthRequest: ReturnType<typeof createStore<boolean>>;
+    openAuthForm(): Promise<void>;
+    closeAuthForm(): Promise<void>;
+    onOpenAuthForm(observer: any): void;
+}
+export declare function getAvatarLink(avatarName: string, extension: string): string;
+export declare abstract class Auth {
+    private backendApi;
+    protected userProfileReader: UserProfileReaderContract;
+    protected authUIManager: AuthUIManagerContract | undefined;
+    private userId?;
+    constructor(backendApi: Backend, host: IHost);
+    init(): Promise<void>;
+    isUserAuthorized(): Promise<boolean>;
+    getToken(): Promise<string | undefined>;
+    abstract getUserProfile(): Promise<UserProfile | null>;
+    onAuthStatusChange(observer: any): () => void;
+    openAuthForm(): Promise<void>;
+    closeAuthForm(): Promise<void>;
+    onOpenAuthForm(observer: any): void | undefined;
+    getUserId(): Promise<string | undefined>;
+}
+export declare class AuthArena extends Auth {
+    constructor(backendApi: Backend, host: IHost, rpcProvider: RpcProvider);
+    getUserProfile(): Promise<UserProfile | null>;
+}
+export declare class AuthGame extends Auth {
+    private rpcProvider;
+    constructor(backendApi: Backend, host: IHost, rpcProvider: RpcProvider);
+    getUserProfile(): Promise<UserProfile | null>;
+}
+export {};
+
+===== dist/pkg/api/features/backend/aarp-session-storage.d.ts =====
+import { SessionStorage, SessionStorageInitParams } from '@arkadium/eagle-user-client';
+import { ApiEnv, BackendEndpoints } from './backend.api';
+
+export declare enum AARPUserEnv {
+    DEV = "https://aarpcloud.cdn.arkadiumhosted.com/arenax-api-user-dev/api/v1/",
+    PROD = "https://aarpcloud.cdn.arkadiumhosted.com/arenax-api-user-live/api/v1/"
+}
+export declare enum AARPCloudSaveEnv {
+    DEV = "https://aarpcloud.cdn.arkadiumhosted.com/aarp-api-user-data-dev/api/v1",
+    PROD = "https://aarpcloud.cdn.arkadiumhosted.com/aarp-api-user-data-live/api/v1"
+}
+export declare class AARPBackendEndpoints implements BackendEndpoints {
+    getUserEndpoint(env: ApiEnv): any;
+    getPaymentsEndpoint(env: ApiEnv): string;
+    getCloudSaveEndpoint(env: ApiEnv): any;
+}
+/** @hidden */
+export declare class AARPSessionStorage extends SessionStorage {
+    constructor(env: ApiEnv, params: SessionStorageInitParams);
+    getToken(): Promise<string>;
+    isAuthorised(): boolean;
+}
+
+===== dist/pkg/api/features/backend/backend.api.d.ts =====
+import { ApiGateway as UserApiGateway } from '@arkadium/eagle-user-client';
+import { UserGameDataApi } from '@arkadium/eagle-user-client/dist/types/api/v1/user-game-data.api';
+import { IHost } from '../host';
+
+export declare enum ApiEnv {
+    DEV = "DEV",
+    PROD = "PROD",
+    STAGING = "STAGING"
+}
+export declare enum BackendType {
+    EAGLE = "EAGLE",
+    AARP = "AARP"
+}
+export declare function getEnv(): ApiEnv;
+export interface BackendEndpoints {
+    getUserEndpoint: (env: ApiEnv) => string;
+    getPaymentsEndpoint: (env: ApiEnv) => string;
+    getCloudSaveEndpoint: (env: ApiEnv) => string;
+}
+/** @hidden */
+export declare type SessionStorageType = ReturnType<typeof UserApiGateway.prototype.getSessionStorage>;
+/** @hidden */
+export declare class Backend {
+    private host;
+    user: Awaited<ReturnType<typeof UserApiGateway.prototype.getAuthApi>> | null;
+    private userGateway;
+    private userGameData;
+    uiOpenRequest: import('../../utils/observable').Observable<boolean>;
+    authStatus: import('../../utils/observable').Observable<boolean>;
+    private backendEndpoints;
+    private backendType;
+    private env;
+    constructor(host: IHost);
+    addEventListener(event: number, cb: () => void): void;
+    init(env: ApiEnv, isGameSide: boolean, sessionStorage?: SessionStorageType | null): Promise<void>;
+    private setBackendEndpoints;
+    getUserEndpoint(): URL;
+    getPaymentsEndpoint(): URL | null;
+    getCloudSaveEndpoint(): URL;
+    getBackendType(): BackendType;
+    getAuthToken(): Promise<string> | undefined;
+    getSessionStorage(): import('@arkadium/eagle-user-client').SessionStorage | undefined;
+    checkAuth(): void;
+    isUserAuthorized(): boolean;
+    openAuthForm(): void;
+    closeAuthForm(): void;
+    logout(): void;
+    getUserGameData(): UserGameDataApi | undefined;
+}
+
+===== dist/pkg/api/features/chat/index.d.ts =====
+import { Presence } from '@heroiclabs/nakama-js';
+import { NakamaProvider } from '../nakama/nakama-provider';
+import { NakamaService } from '../nakama/nakama-service';
+import { NotificationsArena, Notification } from '../notifications';
+import { FriendsArena } from '../friends';
+
+declare enum ChatType {
+    Direct = "direct",
+    Public = "public"
+}
+export interface JoinChatResponse {
+    id: string;
+    user_id_one?: string;
+    user_id_two?: string;
+    room_name?: string;
+    self: Presence;
+    presences: Presence[];
+}
+export declare type ChatChannel = {
+    id: string;
+    name: string;
+    target: string;
+    type: ChatType;
+    presences: ChatPresence[];
+    messages: ChatMessage[];
+};
+export declare type ChatPresence = {
+    chatId: string;
+    userId: string;
+    sessionId: string;
+    username: string;
+};
+export declare type MessageContent = {
+    type?: string;
+    [key: string]: any;
+};
+declare const MESSAGE_STATE_UPDATE_TYPE = "message_state_update";
+export { MESSAGE_STATE_UPDATE_TYPE };
+export declare enum MessageStateValue {
+    Sent = "sent",
+    Delivered = "delivered",
+    Read = "read"
+}
+export declare type MessageState = {
+    chatId: string;
+    state: MessageStateValue;
+    timestamp: string;
+    userId: string;
+    username: string;
+};
+export declare type ChatMessage = {
+    id?: string;
+    chatId?: string;
+    content?: MessageContent;
+    senderId?: string;
+    username?: string;
+    createTime?: string;
+    updateTime?: string;
+    states: Map<string, MessageState>;
+};
+export declare type MessageStateListener = (state: MessageState) => void;
+export declare type GetChatMessagesParams = {
+    chatId: string;
+    fromCache?: boolean;
+    limit?: number;
+};
+export declare type ChatPresencesListener = (presence: ChatPresence[]) => void;
+export declare type ChatMessageListener = (message: ChatMessage) => void;
+export declare type ChatInviteListener = (invite: Notification) => void;
+export declare type ChatJoinerListener = (joiner: ChatPresence) => void;
+export declare type ChatLeaverListener = (leaver: ChatPresence) => void;
+export declare class ChatArena extends NakamaService {
+    private _notificationsService;
+    private _friendsService;
+    private _chatList;
+    private _autoJoinChat;
+    private _chatMessagesCursor?;
+    private _messageStatesCache;
+    private readonly _delayBeforeProcessing;
+    private _notificationListenerRemover;
+    private _chatPresencesListener?;
+    private _chatMessageListener?;
+    private _chatInviteListener?;
+    private _chatJoinerListener?;
+    private _chatLeaverListener?;
+    private _messageStateListener?;
+    constructor(nakamaProvider: NakamaProvider, _notificationsService: NotificationsArena, _friendsService: FriendsArena);
+    setAutoJoinChat(isEnabled: boolean): void;
+    getJoinedChats(): ChatChannel[];
+    getChatMessages({ chatId, fromCache, limit }: GetChatMessagesParams): Promise<ChatMessage[]>;
+    joinDirectChat(userId: string): Promise<ChatChannel>;
+    private joinChat;
+    sendMessageWithFriendId(userId: string, data: object): Promise<void>;
+    sendMessageWithChatId(chatId: string, data: object): Promise<void>;
+    leaveChat(chatId: string): Promise<void>;
+    private removeChatPresence;
+    private addChatPresences;
+    private addChatPresence;
+    private addChatMessage;
+    private addChatMessages;
+    private handleJoinChatInvitation;
+    private mapNakamaChannelMessageToChatMessage;
+    private onChannelPresenceChanged;
+    subscribeChatPresenceListener(listener: ChatPresencesListener): void;
+    removeChatPresenceListener(): void;
+    private getStatePriority;
+    private getHighestPriorityState;
+    private updateMessageStates;
+    private cacheMessageState;
+    private applyCachedStateUpdates;
+    private onChannelMessageChanged;
+    subscribeChatMessageListener(listener: ChatMessageListener): void;
+    removeChatMessageListener(): void;
+    private onChatInviteNotification;
+    subscribeChatInviteListener(listener: ChatInviteListener): void;
+    removeChatInviteListener(): void;
+    subscribeChatJoinerListener(listener: ChatJoinerListener): void;
+    removeChatJoinerListener(): void;
+    subscribeChatLeaverListener(listener: ChatLeaverListener): void;
+    removeChatLeaverListener(): void;
+    private sendMessageState;
+    markMessageAsDelivered(chatId: string): Promise<void>;
+    markMessageAsRead(chatId: string): Promise<void>;
+    subscribeMessageStateListener(listener: MessageStateListener): void;
+    removeMessageStateListener(): void;
+    protected onSocketConnectionChanged(isConnected: boolean): void;
+}
+
+===== dist/pkg/api/features/chat/index.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/friends/index.d.ts =====
+import { NakamaProvider } from '../nakama/nakama-provider';
+import { Auth } from '../auth/index';
+import { NakamaService } from '../nakama/nakama-service';
+import { NotificationsArena, NotificationListener } from '../notifications';
+
+export declare const FRIEND_STATE_FRIENDS: number;
+export declare const FRIEND_STATE_SENT_REQUEST: number;
+export declare const FRIEND_STATE_RECEIVED_REQUEST: number;
+export declare const FRIEND_STATE_BLOCKED: number;
+export declare enum FriendshipState {
+    None = "none",
+    Friends = "friends",
+    RequestSent = "request_sent",
+    RequestReceived = "request_received",
+    Blocked = "blocked"
+}
+export declare enum UserStatusType {
+    Online = "online",
+    Offline = "offline",
+    InGame = "in_game",
+    Custom = "custom"
+}
+export interface GameStatus {
+    type: UserStatusType.InGame;
+    gameId: string;
+    gameName: string;
+    customMessage?: string;
+}
+export interface CustomStatus {
+    type: UserStatusType.Custom;
+    message: string;
+}
+export interface BasicStatus {
+    type: UserStatusType.Online | UserStatusType.Offline;
+}
+export declare type UserStatus = GameStatus | CustomStatus | BasicStatus;
+declare type Friend = {
+    avatarUrl?: string;
+    displayName?: string;
+    id?: string;
+    online?: boolean;
+    username?: string;
+    friendshipState?: FriendshipState;
+    status?: UserStatus;
+};
+export declare class FriendsArena extends NakamaService {
+    private _auth;
+    private _notificationsService;
+    private _friendsOnlineListener?;
+    private _friendsJoinedListener?;
+    private _friendsLeftListener?;
+    private _friendStatus;
+    private _userStatus?;
+    private _notificationListenerRemovers;
+    constructor(nakamaProvider: NakamaProvider, _auth: Auth, _notificationsService: NotificationsArena);
+    private compressUUID;
+    private decompressUUID;
+    getFriendlyId(): Promise<string>;
+    getFriendlyIdWithEagleId(eagleId: any): string;
+    sendFriendRequestWithFriendlyId(friendlyId: string): Promise<void>;
+    sendFriendRequestWithUserId(userId: string): Promise<void>;
+    private sendFriendRequest;
+    acceptFriendRequest(friendId: string): Promise<void>;
+    rejectFriendRequest(friendId: string): Promise<void>;
+    cancelFriendRequest(friendId: string): Promise<void>;
+    removeFriend(friendId: string): Promise<void>;
+    getFriends(): Promise<Array<Friend>>;
+    getOnlineFriends(): Promise<Array<Friend>>;
+    isFriend(userId: string): Promise<boolean>;
+    private followFriends;
+    private unfollowFriends;
+    private onStatusPresenceChanged;
+    protected onSocketConnectionChanged(isConnected: boolean): void;
+    subscribeFriendRequestNotificationListener(listener: NotificationListener): void;
+    subscribeFriendRequestAcceptedNotificationListener(listener: NotificationListener): void;
+    subscribeFriendsOnlineListener(listener: (onlineFriends: Array<Friend>) => void): void;
+    subscribeFriendsJoinedListener(listener: (joinedFriends: Array<Friend>) => void): void;
+    subscribeFriendsLeftListener(listener: (leftFriends: Array<Friend>) => void): void;
+    blockFriend(friendId: string): Promise<boolean>;
+    private updateFriendStatus;
+    updateStatus(status?: UserStatus): Promise<void>;
+    setOnlineStatus(): Promise<void>;
+    setOfflineStatus(): Promise<void>;
+    setGameStatus(gameId: string, gameName: string, customMessage?: string): Promise<void>;
+    setCustomStatus(message: string): Promise<void>;
+    getStatus(): UserStatus | undefined;
+    getFormattedStatus(status?: UserStatus): string;
+    getGameIdFromStatus(status?: UserStatus): string | undefined;
+}
+export {};
+
+===== dist/pkg/api/features/friends/index.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/game-lifecycle/game-lifecycle.api.d.ts =====
+import { RpcProvider } from '../../core/rpc';
+import { IHost } from '../host';
+import { VirtualItemsApiProvider } from '../wallet';
+
+export declare enum LifecycleEvent {
+    TEST_READY = 1,
+    GAME_START = 2,
+    INTERACT = 3,
+    SCORE_CHANGED = 4,
+    GAME_END = 5,
+    PAUSE_READY = 6,
+    GAME_PAUSE = 7,
+    GAME_RESUME = 8,
+    GEMS_UPDATE = 9,
+    AD_INTERSTITIAL_REQUESTED = 10,
+    AD_INTERSTITIAL_SHOWN = 11,
+    AD_REWARDED_REQUESTED = 12,
+    AD_REWARDED_SHOWN = 13,
+    LEVEL_START = 14,
+    LEVEL_END = 15,
+    REDEEM_POWERUP = 16,
+    OPT_LOG_IN = 17,
+    REWARD_START = 18
+}
+declare type LifecycleFn = (event: LifecycleEvent, payload?: any) => void;
+declare global {
+    interface Window {
+        __RUM__: any;
+    }
+}
+/** @hidden */
+export declare class GameLifecycleArena {
+    private rpcProvider;
+    private host;
+    private subscribers;
+    private virtualItemsApiProvider;
+    LifecycleEvent: typeof LifecycleEvent;
+    constructor(rpcProvider: RpcProvider, host: IHost);
+    setVirtualItemsApiProvider(provider: VirtualItemsApiProvider): void;
+    onEvent(event: LifecycleEvent, payload?: any): Promise<any>;
+    dispatchEvent(event: LifecycleEvent): Promise<void>;
+    subscribe(cb: LifecycleFn, override?: boolean): void;
+    onFtueEvent(eventId: string): Promise<boolean>;
+    OnTestReady(): Promise<void>;
+    OnGameStart(): Promise<void>;
+    OnInteract(): Promise<void>;
+    OnChangeScore(score: number): Promise<void>;
+    OnGameEnd(): Promise<void>;
+    OnGamePause(): Promise<void>;
+    OnGameResume(): Promise<void>;
+    OnPauseReady(): Promise<void>;
+}
+export declare class GameLifecycleGame {
+    private rpcProvider;
+    private eventCallbacks;
+    private sentEvents;
+    LifecycleEvent: typeof LifecycleEvent;
+    constructor(rpcProvider: RpcProvider);
+    private onEvent;
+    private getExecutionTimeLimitMs;
+    dispatchEvent(event: LifecycleEvent, payload?: any): Promise<any>;
+    onTestReady(): Promise<void>;
+    onGameStart(): Promise<void>;
+    /** @hidden */
+    /**
+    * @deprecated The method should not be used
+    */
+    onInteract(): Promise<void>;
+    onChangeScore(score: number | {
+        score: number;
+    }): Promise<void>;
+    onGameEnd(): Promise<void>;
+    subscribe(fn: LifecycleFn): void;
+    onGamePause(): Promise<void>;
+    onGameResume(): Promise<void>;
+    onPauseReady(): Promise<void>;
+    onGemsUpdate(): Promise<void>;
+    onLevelStart(level: number): Promise<void>;
+    onLevelEnd(level: number): Promise<void>;
+    registerEventCallback(event: LifecycleEvent, callback: () => void): void;
+    onFtueEvent(eventId: string): Promise<boolean>;
+    onRedeemPowerup(data: any): Promise<any>;
+    onOptLogin(data: any): Promise<any>;
+    onRewardStart(data: any): Promise<any>;
+    private getPromiseForEvent;
+    private getCallbackType;
+    private setupPostMessageHandler;
+}
+export {};
+
+===== dist/pkg/api/features/game-lifecycle/game-lifecycle.api.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/host/index.d.ts =====
+import { DebugProvider } from '../../core/debug-provider';
+import { RpcProvider } from '../../core/rpc';
+import { ObserverFn } from '../../utils/observable';
+
+export declare enum ArenaType {
+    ARKCOM = "ARKCOM",
+    ARENA51 = "ARENA51",
+    AARP = "AARP"
+}
+export interface IHost {
+    getQueryParameter(key: string): Promise<string | null>;
+    getGameId(): Promise<string>;
+    getGameIdSync?(): string;
+    getGameSlugSync?(): string;
+    setGameId(id: string): void;
+    getDetails(): Promise<WebEnvironmentDetails>;
+    setDetails?(p: Partial<WebEnvironmentDetails>): Promise<void>;
+    openPurchaseForm(r: PurchaseRequest): Promise<void>;
+    onOpenPurchaseForm?(observer: any): any;
+    getArenaName(): Promise<string>;
+    getArenaNameSync?(): string;
+    getGameSDKUrl(): Promise<string>;
+    getArenaType(): Promise<ArenaType>;
+    isSubscriptionsSupported(): Promise<boolean>;
+    isEagleSupported(): Promise<boolean>;
+    isAuthSupported(): Promise<boolean>;
+}
+export declare type PurchaseRequest = {
+    type?: string;
+    currencySku?: string;
+};
+declare class WebEnvironmentDetails {
+    siteName: string;
+    siteDomain: string;
+    referrer: string;
+    activeLocale: string;
+    devEnvironment: string;
+    darkMode: boolean;
+    constructor(siteName?: string, siteDomain?: string, referrer?: string, activeLocale?: string, devEnvironment?: string, darkMode?: boolean);
+    clone(p: Partial<WebEnvironmentDetails>): WebEnvironmentDetails;
+}
+export declare type UrlState = {
+    url?: string;
+    params?: URLSearchParams;
+    hash?: string;
+};
+export declare type UrlStateUnsubscribeFn = () => void;
+/** @hidden */
+export declare class HostArena implements IHost {
+    private rpcProvider;
+    private debugProvider;
+    private gameIdOverride;
+    private data;
+    private openRequest;
+    private readonly urlState;
+    /**
+     * @internal
+     */
+    constructor(rpcProvider: RpcProvider, debugProvider: DebugProvider);
+    noOp(): Promise<void>;
+    getQueryParameter(key: string): Promise<string | null>;
+    getGameId(): Promise<string>;
+    getGameIdSync(): string;
+    setGameId(id: string): Promise<void>;
+    getGameSlugSync(): string;
+    getDetails(): Promise<WebEnvironmentDetails>;
+    setDetails(p: Partial<WebEnvironmentDetails>): Promise<void>;
+    openPurchaseForm(pr: PurchaseRequest): Promise<void>;
+    onOpenPurchaseForm(observer: any): () => void;
+    purchaseFormClosed(madePurchase: boolean): Promise<void>;
+    getArenaName(): Promise<string>;
+    getArenaNameSync(): string;
+    getGameSDKUrl(): Promise<string>;
+    getArenaType(): Promise<ArenaType>;
+    getArenaTypeSync(): ArenaType;
+    getGameDimensions(): Promise<{
+        width: number;
+        height: number;
+    }>;
+    sendUrlState(urlState: UrlState): Promise<void>;
+    private updateUrlState;
+    subscribeToUrlStateChange(observer: ObserverFn<UrlState | undefined>): UrlStateUnsubscribeFn;
+    isSubscriptionsSupported(): Promise<boolean>;
+    isEagleSupported(): Promise<boolean>;
+    isAuthSupported(): Promise<boolean>;
+}
+export declare class HostGame implements IHost {
+    private rpcProvider;
+    private purchaseFormState;
+    private readonly urlState;
+    /**
+     * @internal
+     */
+    constructor(rpcProvider: RpcProvider);
+    getQueryParameter(key: string): Promise<string | null>;
+    getGameId(): Promise<string>;
+    /** @hidden */
+    /**
+    * @deprecated The method should not be used
+    */
+    setGameId(id: string): void;
+    getDetails(): Promise<WebEnvironmentDetails>;
+    openPurchaseForm(r?: PurchaseRequest): Promise<void>;
+    onPurchaseFormStateChange(observer: any): () => void;
+    private purchaseFormClosed;
+    getArenaName(): Promise<string>;
+    getArenaType(): Promise<ArenaType>;
+    getGameSDKUrl(): Promise<string>;
+    getGameDimensions(): Promise<{
+        width: number;
+        height: number;
+    }>;
+    getGameAssetsUrl(): string;
+    sendUrlState(urlState: UrlState): Promise<void>;
+    private updateUrlState;
+    subscribeToUrlStateChange(observer: ObserverFn<UrlState | undefined>): UrlStateUnsubscribeFn;
+    isSubscriptionsSupported(): Promise<boolean>;
+    isEagleSupported(): Promise<boolean>;
+    isAuthSupported(): Promise<boolean>;
+}
+export {};
+
+===== dist/pkg/api/features/host/index.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/leaderboard/index.d.ts =====
+import { ApiEnv } from '../backend/backend.api';
+import { RpcProvider } from '../../core/rpc';
+import { IHost } from '../host';
+import { Auth } from '../auth';
+import { GameLifecycleArena } from '../game-lifecycle/game-lifecycle.api';
+
+declare enum LeaderboardType {
+    Day = "day",
+    Week = "week",
+    Month = "month",
+    All = "all"
+}
+declare type LeaderboardEntry = {
+    rank: number;
+    score: number;
+    username: string;
+    avatar: string;
+};
+export declare class LeaderboardArena {
+    private host;
+    private auth;
+    private lifecycle;
+    private isInited;
+    private leaderboardEndpoint;
+    private arenaDomain;
+    private _isSupported;
+    private arenaType;
+    constructor(rpcProvider: RpcProvider, host: IHost, auth: Auth, lifecycle: GameLifecycleArena);
+    init(env: ApiEnv): Promise<void>;
+    isSupported(): Promise<boolean>;
+    private getUserScoresUrl;
+    getUserScore(type?: LeaderboardType): Promise<number>;
+    private getTopScoresUrl;
+    getTopScores(type?: LeaderboardType, limit?: number): Promise<Array<LeaderboardEntry>>;
+    postScore(score: number): Promise<void>;
+}
+export declare class LeaderboardGame {
+    private rpcProvider;
+    type: typeof LeaderboardType;
+    constructor(rpcProvider: RpcProvider);
+    isSupported(): Promise<boolean>;
+    getUserScore(type?: LeaderboardType): Promise<number>;
+    getTopScores(type?: LeaderboardType, limit?: number): Promise<Array<LeaderboardEntry>>;
+    postScore(score: number): Promise<void>;
+}
+export {};
+
+===== dist/pkg/api/features/leaderboard/index.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/nakama/nakama-provider.d.ts =====
+import { Client as NakamaClient, Session as NakamaSession, Socket as NakamaSocket } from '@heroiclabs/nakama-js';
+import { ApiEnv } from '../backend/backend.api';
+import { IHost } from '../host';
+import { Auth } from '../auth';
+import { ApiAccount } from '@heroiclabs/nakama-js/dist/api.gen';
+
+export declare type RpcGetNkUserByEagleIdParams = {
+    EagleUserId: string | number;
+};
+export interface RpcGetNkUserResponse {
+    CustomId: string;
+    UserId: string;
+    UserName: string;
+    Message: string | null;
+}
+export interface NakamaContext {
+    client: NakamaClient | null;
+    session: NakamaSession | null;
+    socket: NakamaSocket | null;
+    gameId?: string;
+}
+export declare class NakamaProvider {
+    private host;
+    private auth;
+    private _ctx;
+    private _socketListeners;
+    private userSessionDeferred?;
+    private wasEagleSubscribed;
+    private env;
+    private gameId;
+    private _isConnected;
+    private _gameCtx;
+    private RPC_GET_USER_BY_EAGLE_ID;
+    constructor(host: IHost, auth: Auth);
+    init(env: ApiEnv): void;
+    isSupported(): boolean;
+    isUserAuthorized(): boolean;
+    private getNakamaClient;
+    private subscribeToEagleAuthChanges;
+    private getNakamaVars;
+    private initNakamaSession;
+    private initNakamaSessionViaEagle;
+    getGameContext(): Promise<NakamaContext>;
+    /**
+     * this method is called when the user is logged in
+     * CAUTION: this method is called from eagle login status change, therefore it can't throw
+     */
+    private onEagleLogin;
+    /**
+     * this method is called when the user is logged out
+     * CAUTION: this method is called from eagle login status change, therefore it can't throw
+     */
+    private onEagleLogout;
+    getAccount(): Promise<ApiAccount | null>;
+    private isNakamaUserLinkedToEagle;
+    getContext(): NakamaContext;
+    rpcGetNkUserByEagleId(eagleId: string): Promise<RpcGetNkUserResponse | undefined>;
+    createSocket(): Promise<void>;
+    subscribeSocketListener(listener: (isConnected: boolean) => void): void;
+    private onSocketConnect;
+    private onSocketDisconnect;
+}
+
+===== dist/pkg/api/features/nakama/nakama-provider.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/nakama/nakama-service.d.ts =====
+import { NakamaProvider, NakamaContext } from '../nakama/nakama-provider';
+
+export declare abstract class NakamaService {
+    protected _ctx: NakamaContext;
+    constructor(nakamaProvider: NakamaProvider);
+    isSupported(): boolean;
+    protected createSocket(): Promise<void>;
+    protected abstract onSocketConnectionChanged(isConnected: boolean): any;
+}
+
+===== dist/pkg/api/features/notifications/index.d.ts =====
+import { NakamaProvider } from '../nakama/nakama-provider';
+import { NakamaService } from '../nakama/nakama-service';
+
+export declare const NOTIFICATION_TYPE_CHAT_INVITE: number;
+export declare const NOTIFICATION_TYPE_FRIEND_REQUEST: number;
+export declare const NOTIFICATION_TYPE_FRIEND_REQUEST_ACCEPTED: number;
+export declare enum NotificationType {
+    All = "all",
+    ChatInvite = "chat_invite",
+    FriendRequest = "friend_request",
+    FriendRequestAccepted = "friend_request_accepted"
+}
+export declare type Notification = {
+    type: NotificationType;
+    content?: {};
+    id?: string;
+    senderId?: string;
+    subject?: string;
+    createTime?: string;
+};
+export declare type GetNotificationParams = {
+    fromCache?: boolean;
+    limit?: number;
+};
+export declare type NotificationListener = (notification: Notification) => void;
+export declare type NotificationListenerRemover = () => void;
+export declare class NotificationsArena extends NakamaService {
+    private _notifications;
+    private _notificationListeners;
+    private _notificationCursor;
+    constructor(nakamaProvider: NakamaProvider);
+    getNotifications({ fromCache, limit }?: GetNotificationParams): Promise<Notification[]>;
+    deleteNotification(notificationId: string): Promise<boolean>;
+    private addNotificationToList;
+    private addNotificationsToList;
+    private removeNotificationFromList;
+    private mapNakamaNotificationToNotification;
+    private onNotificationReceived;
+    subscribeNotificationListener(listener: NotificationListener): NotificationListenerRemover;
+    subscribeNotificationTypeListener(listener: NotificationListener, type: NotificationType): NotificationListenerRemover;
+    protected onSocketConnectionChanged(isConnected: boolean): void;
+}
+
+===== dist/pkg/api/features/persistence/index.d.ts =====
+import { RpcProvider } from '../../core/rpc';
+import { Backend } from '../backend/backend.api';
+import { IHost } from '../host';
+import { DebugProvider } from '../../core/debug-provider';
+import { IndexedDBStorage } from '../../utils/indexed-db-storage';
+
+declare type RemoteStorageValueType = string | object;
+export interface IPersistence {
+    getCookie(cookieName: string): Promise<string>;
+    getLocalStorageItem(key: string): Promise<string | null>;
+    setLocalStorageItem(key: string, value: string): Promise<void>;
+    removeLocalStorageItem(key: string): Promise<void>;
+    getRemoteStorageItem?(key: string): Promise<RemoteStorageValueType | null>;
+    setRemoteStorageItem?(key: string, value: RemoteStorageValueType): Promise<boolean>;
+    removeRemoteStorageItem?(key: string): Promise<boolean>;
+}
+/** @hidden */
+export declare class PersistenceArena implements IPersistence {
+    private readonly debugProvider;
+    private readonly storage;
+    /**
+     * @internal
+     */
+    constructor(rpcProvider: RpcProvider, debugProvider: DebugProvider, storage?: IndexedDBStorage);
+    getCookie(cookieName: string): Promise<string>;
+    getLocalStorageItem(key: string): Promise<string | null>;
+    setLocalStorageItem(key: string, value: string): Promise<void>;
+    removeLocalStorageItem(key: string): Promise<void>;
+}
+export declare class PersistenceGame implements IPersistence {
+    private rpcProvider;
+    private host;
+    private backend;
+    private debugProvider;
+    private remoteStorageBlacklist;
+    private remoteSetQueue;
+    /**
+     * @internal
+     */
+    constructor(rpcProvider: RpcProvider, host: IHost, backend: Backend, debugProvider: DebugProvider);
+    getCookie(cookieName: string): Promise<string>;
+    private getPrefixedLocalStorageKey;
+    getLocalStorageItem(key: string): Promise<string | null>;
+    setLocalStorageItem(key: string, value: string): Promise<void>;
+    removeLocalStorageItem(key: string): Promise<void>;
+    private getCollection;
+    private getRemoteToLocalStorageKey;
+    private isRemoteStorageBlacklisted;
+    getRemoteStorageItem(key: string, shouldUnpack?: boolean): Promise<RemoteStorageValueType | null>;
+    private setRemoteStorageItemInternal;
+    setRemoteStorageItem(key: string, value: RemoteStorageValueType): Promise<boolean>;
+    removeRemoteStorageItem(key: string): Promise<boolean>;
+}
+export {};
+
+===== dist/pkg/api/features/persistence/index.test.d.ts =====
+
+
+===== dist/pkg/api/features/ratings/index.d.ts =====
+import { ApiEnv } from '../backend/backend.api';
+import { IHost } from '../host';
+import { Auth } from '../auth';
+import { PersistenceArena } from '../persistence';
+
+export declare type UserRating = {
+    vote: number;
+    gameId: string;
+};
+export declare type GameRating = {
+    upVotes: number;
+    downVotes: number;
+    totalVotes: number;
+    gameId: string;
+};
+export declare class RatingsArena {
+    private host;
+    private auth;
+    private persistence;
+    private isInited;
+    private ratingsEndpoint;
+    private arenaDomain;
+    private _isSupported;
+    constructor(host: IHost, auth: Auth, persistence: PersistenceArena);
+    init(env: ApiEnv): Promise<void>;
+    isSupported(): Promise<boolean>;
+    upvoteGame(gameId?: string, captchaToken?: string, captchaMode?: string): Promise<void>;
+    downvoteGame(gameId?: string, captchaToken?: string, captchaMode?: string): Promise<void>;
+    removeGameVote(gameId?: string, captchaToken?: string, captchaMode?: string): Promise<void>;
+    private getUserInfo;
+    private postUserRating;
+    getUserRating(gameId?: string): Promise<UserRating>;
+    getGameRating(gameId?: string): Promise<GameRating>;
+}
+
+===== dist/pkg/api/features/ratings/index.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/recorder/index.d.ts =====
+import { RpcProvider } from '../../core/rpc';
+import { GameLifecycleGame } from '../game-lifecycle/game-lifecycle.api';
+
+declare type RecordedCommand = {
+    type: 'pointerdown' | 'keydown' | 'scroll' | 'pointermove' | 'pointerup';
+    timestamp: number;
+    key?: string;
+    x?: number;
+    y?: number;
+};
+export declare class RecorderArena {
+    private rpcProvider;
+    constructor(rpcProvider: RpcProvider);
+    startCapturing(): Promise<void>;
+    stopCapturing(): Promise<void>;
+    playCommands(commands: RecordedCommand[]): Promise<void>;
+}
+export declare class RecorderGame {
+    private rpcProvider;
+    private lifecycle;
+    private _inputFocused;
+    private _isCapturing;
+    private _scrollEndListener;
+    private _pointerMoveListener;
+    private _pointerUpListener;
+    constructor(rpcProvider: RpcProvider, lifecycle: GameLifecycleGame);
+    startCapturing(): Promise<void>;
+    stopCapturing(): Promise<void>;
+    private playCommands;
+}
+export {};
+
+===== dist/pkg/api/features/support-v1/game-state/game-state.api.d.ts =====
+import { Backend } from '../../backend/backend.api';
+import { RpcProvider } from '../../../core/rpc';
+import { IHost } from '../../host';
+
+declare class SaveDataContract<T> {
+    __cloudMeta__: {
+        __version: number;
+    };
+    data: T | null;
+    clone<T>(p: Partial<SaveDataContract<T>>): SaveDataContract<T>;
+}
+interface Serializer {
+    pack(data: Record<any, any>): Promise<string>;
+    unpack(data: string): Promise<Record<any, any> | null>;
+}
+export declare class GameStateApi {
+    private backendApi;
+    private host;
+    private rpcProvider;
+    private ls;
+    private knownStates;
+    private serializer;
+    private useGameSerializer;
+    constructor(backendApi: Backend, host: IHost, rpcProvider: RpcProvider);
+    private getGameId;
+    private packData;
+    private unpackData;
+    private isUserAuthorized;
+    private getStorageKey;
+    useSerializer(value: boolean): void;
+    setSerializer(s: Serializer): void;
+    loadGameState<T>(key: string): Promise<{
+        cloud: SaveDataContract<T> | null;
+        local: SaveDataContract<T> | null;
+    }>;
+    private loadData;
+    private isStateOutdated;
+    saveGameState<T>(key: string, state: SaveDataContract<T>): Promise<void>;
+    private saveDataToStorage;
+}
+export {};
+
+===== dist/pkg/api/features/support-v1/support-v1.d.ts =====
+import { RpcProvider } from '../../core/rpc';
+import { Backend } from '../backend/backend.api';
+import { IHost } from '../host';
+
+/** @hidden */
+export declare class SupportV1 {
+    private rpcProvider;
+    private gameState;
+    constructor(rpcProvider: RpcProvider, bApi: Backend, host: IHost);
+}
+
+===== dist/pkg/api/features/tournaments/index.d.ts =====
+import { NakamaService } from '../nakama/nakama-service';
+import { NakamaProvider } from '../nakama/nakama-provider';
+import { RpcProvider } from '../../core/rpc';
+
+export declare type Tournament = {
+    id?: string;
+    title?: string;
+    description?: string;
+    duration?: number;
+    category?: number;
+    sortOrder?: number;
+    size?: number;
+    maxSize?: number;
+    maxNumScore?: number;
+    canEnter?: boolean;
+    nextReset?: number;
+    metadata?: object;
+    createTime?: number;
+    startTime?: number;
+    endTime?: number;
+    startActive?: number;
+    endActive?: number;
+};
+export declare type TournamentEntry = {
+    ownerId?: string;
+    rank?: number;
+    score?: number;
+    subscore?: number;
+    /** The username of the score owner, if the owner is a user. */
+    username?: string;
+    /** The number of submissions to this score record. */
+    numScore: number;
+    /** The maximum number of score updates allowed by the owner. */
+    maxNumScore: number;
+    metadata?: object;
+};
+export declare type SubmitTournamentScoreParams = {
+    tournamentId: string;
+    score: number;
+    subscore?: number;
+    metadata?: object;
+};
+export declare class TournamentsArena extends NakamaService {
+    private RPC_GET_TOURNAMENT_LIST_BY_CONTEXT;
+    private RPC_JOIN_TOURNAMENT;
+    private RPC_SUBMIT_SCORE_TO_TOURNAMENT;
+    constructor(nakamaProvider: NakamaProvider, rpcProvider: RpcProvider);
+    protected onSocketConnectionChanged(isConnected: boolean): void;
+    getTournaments(): Promise<Tournament[]>;
+    hasJoinedTournament(tournamentId: string): Promise<boolean>;
+    joinTournament(tournamentId: string): Promise<boolean>;
+    canSubmitScoreToTournament(tournamentId: string): Promise<boolean>;
+    submitTournamentScore(params: SubmitTournamentScoreParams): Promise<boolean>;
+    getTopTournamentEntries(tournamentId: string, top: number): Promise<TournamentEntry[]>;
+    getTournamentUserEntry(tournamentId: string): Promise<TournamentEntry | null>;
+    getTournamentUsersEntries(tournamentId: string, userIds: string[]): Promise<TournamentEntry[]>;
+    getTournamentEntriesAroundUser(tournamentId: string, amount?: number): Promise<TournamentEntry[]>;
+    private mapNakamaTournamentEntryToTournamentEntry;
+}
+export declare class TournamentsGame {
+    private rpcProvider;
+    constructor(rpcProvider: RpcProvider);
+    getTournaments(): Promise<Tournament[]>;
+    hasJoinedTournament(tournamentId: string): Promise<boolean>;
+    joinTournament(tournamentId: string): Promise<boolean>;
+    canSubmitScoreToTournament(tournamentId: string): Promise<boolean>;
+    submitTournamentScore(params: SubmitTournamentScoreParams): Promise<boolean>;
+    getTopTournamentEntries(tournamentId: string, top: number): Promise<TournamentEntry[]>;
+    getTournamentUserEntry(tournamentId: string): Promise<TournamentEntry | null>;
+    getTournamentUsersEntries(tournamentId: string, userIds: string[]): Promise<TournamentEntry[]>;
+    getTournamentEntriesAroundUser(tournamentId: string, amount?: number): Promise<TournamentEntry[]>;
+}
+
+===== dist/pkg/api/features/tournaments/tournaments.test.d.ts =====
+export {};
+
+===== dist/pkg/api/features/wallet/index.d.ts =====
+import { ApiEnv, Backend } from '../backend/backend.api';
+import { ApiSet as VirtualItemApi } from '@arkadium/eagle-virtual-items-api-client';
+import { GameLifecycleArena } from '../game-lifecycle/game-lifecycle.api';
+import { RpcProvider } from '../../core/rpc';
+import { IHost } from '../host';
+
+export declare type Item = {
+    sku: string;
+    amount: number;
+};
+export declare type Items = {
+    [sku: string]: Item;
+};
+export declare type Bundle = {
+    sku: string;
+    price: number;
+    salesPrice: number;
+    salesEndDate: string;
+    isSalesActive: boolean;
+    contents: Item[];
+};
+export declare type Bundles = {
+    [sku: string]: Bundle;
+};
+export interface Wallet {
+    init?(env: ApiEnv): Promise<void>;
+    getGems(): Promise<number>;
+    consumeGems(amount: number): Promise<boolean>;
+    getBundles(): Promise<Bundles>;
+    purchaseBundle(bundleSku: string, amount: number): Promise<boolean>;
+    getCatalog(): Promise<Items>;
+    grantCatalogItem(itemSku: string, amount: number): Promise<boolean>;
+    getInventory(): Promise<Items>;
+    getInventoryItemAmount(sku: string): Promise<number>;
+    consumeInventoryItem(sku: string, amount: number): Promise<boolean>;
+    hasInventoryItem(sku: string, amount: number): Promise<boolean>;
+}
+export interface VirtualItemsApiProvider {
+    getVirtualItemsApi(): VirtualItemApi;
+}
+export declare class WalletArena implements Wallet, VirtualItemsApiProvider {
+    private backendApi;
+    private lifecycle;
+    private host;
+    private virtualItemsApi;
+    private virtualItemGateway;
+    private currencySku;
+    private isInited;
+    private _isGemsSupported;
+    private _cachedBundles;
+    constructor(backendApi: Backend, lifecycle: GameLifecycleArena, rpcProvider: RpcProvider, host: IHost);
+    getVirtualItemsApi(): VirtualItemApi;
+    init(env: ApiEnv): Promise<void>;
+    setGemsSupported(isSupported: boolean): void;
+    private isGemsSupported;
+    /**
+     * Allows querying for the wallet balance
+     * @returns the amount of gems in the user wallet
+     */
+    getGems(): Promise<number>;
+    /**
+     * Consumes the desired amount of gems from the user wallet
+     * @param amount
+     * @returns true if the spending of the gem amount was successful, false otherwise
+     */
+    consumeGems(amount: number): Promise<boolean>;
+    getBundles(): Promise<Bundles>;
+    purchaseBundle(bundleSku: string, amount?: number): Promise<boolean>;
+    getCatalog(): Promise<Items>;
+    grantCatalogItem(itemSku: string, amount?: number): Promise<boolean>;
+    getInventory(): Promise<Items>;
+    getInventoryItemAmount(sku: string): Promise<number>;
+    consumeInventoryItem(sku: string, amount?: number): Promise<boolean>;
+    hasInventoryItem(sku: string, amount?: number): Promise<boolean>;
+}
+export declare class WalletGame implements Wallet {
+    private rpcProvider;
+    constructor(rpcProvider: RpcProvider);
+    /**
+     * Allows querying for the wallet balance
+     * @returns the amount of gems in the user wallet
+     */
+    getGems(): Promise<number>;
+    /**
+     * Consumes the desired amount of gems from the user wallet
+     * @param amount
+     * @returns true if the spending of the gem amount was successful, false otherwise
+     */
+    consumeGems(amount: number): Promise<boolean>;
+    isGemsSupported(): Promise<boolean>;
+    getBundles(): Promise<Bundles>;
+    purchaseBundle(bundleSku: string, amount?: number): Promise<boolean>;
+    getCatalog(): Promise<Items>;
+    grantCatalogItem(itemSku: string, amount?: number): Promise<boolean>;
+    getInventory(): Promise<Items>;
+    getInventoryItemAmount(sku: string): Promise<number>;
+    consumeInventoryItem(sku: string, amount?: number): Promise<boolean>;
+    hasInventoryItem(sku: string, amount?: number): Promise<boolean>;
+}
+
+===== dist/pkg/api/features/wallet/index.test.d.ts =====
+export {};
+
+===== dist/pkg/api/interface.test.d.ts =====
+export {};
+
+===== dist/pkg/api/utils/async-queue.d.ts =====
+export declare class AsyncQueue {
+    private queue;
+    private isProcessing;
+    enqueue<T>(task: () => Promise<T>): Promise<T>;
+    private processQueue;
+}
+
+===== dist/pkg/api/utils/async-queue.test.d.ts =====
+export {};
+
+===== dist/pkg/api/utils/deferred.d.ts =====
+/** @hidden */
+export declare class Deferred<T> {
+    promise: Promise<T>;
+    resolve: (options: T) => void;
+    reject: (err: Error) => void;
+    constructor();
+}
+
+===== dist/pkg/api/utils/fetch.d.ts =====
+export declare function apiFetch(url: string, options?: any): Promise<any>;
+
+===== dist/pkg/api/utils/indexed-db-storage.d.ts =====
+export declare class IndexedDBStorage {
+    private readonly dbName;
+    private readonly storeName;
+    private dbPromise;
+    private readonly fallbackStorage;
+    constructor(dbName?: string, storeName?: string, fallbackStorage?: Storage | null);
+    private isIndexedDBAvailable;
+    private openDB;
+    private getFromIndexedDB;
+    private setInIndexedDB;
+    private removeFromIndexedDB;
+    private getFromFallbackStorage;
+    private removeFromFallbackStorage;
+    private setInFallbackStorage;
+    getItem(key: string): Promise<string | null>;
+    setItem(key: string, value: string): Promise<void>;
+    removeItem(key: string): Promise<void>;
+}
+
+===== dist/pkg/api/utils/indexed-db-storage.test.d.ts =====
+
+
+===== dist/pkg/api/utils/mockUser.d.ts =====
+interface Image {
+    png: string;
+    webp: string;
+}
+interface UserProfile {
+    uid: string;
+    username: string;
+    avatar: Image;
+    avatarFrame?: Image;
+    avatarBackground?: string;
+    isUserSubscriber: boolean;
+    aarpMembershipStatus?: boolean;
+    coins?: number;
+    level?: number;
+}
+export declare type MockUser = {
+    profile: UserProfile;
+    wallet: {
+        getGems: () => number;
+        consumeGems: (amount: number) => boolean;
+    };
+};
+export declare function getMockUserEnabled(): boolean;
+export declare function setMockUserEnabled(enabled: boolean): void;
+export declare function getMockUser(): MockUser | undefined;
+export declare function setMockUser(user: MockUser): void;
+export {};
+
+===== dist/pkg/api/utils/observable.d.ts =====
+/** @hidden */
+export declare type ObserverFn<T> = (data: T) => void;
+/** @hidden */
+export interface ReadonlyObservable<T> {
+    subscribe: (observer: ObserverFn<T>) => any;
+}
+/** @hidden */
+export declare class Observable<T> {
+    private lastValue;
+    private observers;
+    constructor(initialValue: T);
+    subscribe(observer: ObserverFn<T>): () => void;
+    update(data: T): void;
+}
+export declare function createStore<T>(initialValue: T): Observable<T>;
+
+===== dist/pkg/api/utils/promise-retry.d.ts =====
+export declare function callPromiseWithTimeoutAndRetry(promiseFn: any, timeout?: number, retries?: number, delay?: number): Promise<unknown>;
+
+===== dist/pkg/api/utils/validate-input.d.ts =====
+export declare type ValidationResult = {
+    valid: true;
+} | {
+    valid: false;
+    expected: string;
+    received: string;
+};
+export declare type ArgumentValidator = (value: unknown) => ValidationResult;
+/**
+ * Schema primitives for defining object shapes. Use these as the single source of truth:
+ * define the schema once, derive the type with InferSchema, and pass to schema() for validation.
+ */
+export declare type SchemaPrimitive = 'string' | 'number' | 'boolean' | 'object' | 'array';
+/**
+ * Infers a TypeScript type from a schema object. Use with: type T = InferSchema<typeof mySchema>
+ */
+export declare type InferSchema<T> = T extends Record<string, SchemaPrimitive> ? {
+    [K in keyof T]: SchemaPrimitiveToType<T[K]>;
+} : never;
+declare type SchemaPrimitiveToType<P> = P extends 'string' ? string : P extends 'number' ? number : P extends 'boolean' ? boolean : P extends 'object' ? Record<string, unknown> : P extends 'array' ? unknown[] : never;
+/**
+ * Creates a validator from a schema object. The schema is the single source of truth:
+ * use InferSchema<typeof schema> for the type and schema(schema) for the decorator.
+ *
+ * @example
+ * const UrlStateSchema = { url: 'string' } as const;
+ * type UrlState = InferSchema<typeof UrlStateSchema>;
+ * @ValidateInput(schema(UrlStateSchema))
+ * private updateUrlState(urlState: UrlState): void { ... }
+ */
+export declare function schema<T extends Record<string, SchemaPrimitive>>(shape: T): ArgumentValidator;
+/**
+ * Decorator that validates method arguments before invocation.
+ * Pass one validator per argument in order.
+ * Throws an Error with details about which argument(s) failed validation.
+ *
+ * @example
+ * @ValidateInput(schema(UrlStateSchema))
+ * private updateUrlState(urlState: UrlState): void { ... }
+ */
+export declare function ValidateInput(...validators: ArgumentValidator[]): (_target: unknown, propertyKey: string, descriptor: PropertyDescriptor) => PropertyDescriptor;
+export {};
+
+===== dist/pkg/api/version.d.ts =====
+export declare const __SDK_VERSION__ = "__GAME_SDK_VERSION__";
+
+===== dist/pkg/arkadium-arena-sdk.d.ts =====
+import { ApiEnv, Backend, SessionStorageType } from './api/features/backend/backend.api';
+import { GameLifecycleArena } from './api/features/game-lifecycle/game-lifecycle.api';
+import { AdsArena } from './api/features/ads/';
+import { AuthArena } from './api/features/auth/';
+import { AnalyticsApiContract } from './api/features/analytics/analytics.api';
+import { Observable } from './api/utils/observable';
+import { TimeoutTesterContract } from './api/core/timeout-tester';
+import { PersistenceArena } from './api/features/persistence';
+import { HostArena } from './api/features/host';
+import { WalletArena } from './api/features/wallet';
+import { DebugProviderArena } from './api/core/debug-provider';
+import { SupportV1 } from './api/features/support-v1/support-v1';
+import { LeaderboardArena } from './api/features/leaderboard';
+import { FriendsArena } from './api/features/friends';
+import { NotificationsArena } from './api/features/notifications';
+import { ChatArena } from './api/features/chat';
+import { ConfigService } from './api/core/config-service';
+import { RatingsArena } from './api/features/ratings';
+import { TournamentsArena } from './api/features/tournaments';
+import { RecorderArena } from './api/features/recorder';
+
+import * as MockUserUtils from './api/utils/mockUser';
+/** @hidden */
+export declare class ArkadiumArenaSdk {
+    backendApi: Backend;
+    host: HostArena;
+    lifecycle: GameLifecycleArena;
+    ads: AdsArena;
+    auth: AuthArena;
+    analytics: AnalyticsApiContract;
+    private timeoutTester;
+    persistence: PersistenceArena;
+    private wallet;
+    debug: DebugProviderArena;
+    private supportV1;
+    private leaderboard;
+    friends: FriendsArena;
+    notifications: NotificationsArena;
+    chats: ChatArena;
+    ratings: RatingsArena;
+    tournaments: TournamentsArena;
+    recorder: RecorderArena;
+    private currentEnv;
+    private currentTarget;
+    private gamePingSender;
+    private gamePingListener;
+    $pingNotification: Observable<number>;
+    version: string;
+    config: ConfigService;
+    constructor(backendApi: Backend, host: HostArena, lifecycle: GameLifecycleArena, ads: AdsArena, auth: AuthArena, analytics: AnalyticsApiContract, timeoutTester: TimeoutTesterContract, persistence: PersistenceArena, wallet: WalletArena, debug: DebugProviderArena, supportV1: SupportV1, leaderboard: LeaderboardArena, friends: FriendsArena, notifications: NotificationsArena, chats: ChatArena, ratings: RatingsArena, tournaments: TournamentsArena, recorder: RecorderArena);
+    setEnv(e: ApiEnv): void;
+    initialize(env: ApiEnv, isGameSide: boolean, sessionStorage?: SessionStorageType | null): Promise<void>;
+    private envDiscoverListener;
+    updateWinReference(target: any): void;
+    debugMode(isEnabled: boolean): void;
+    ping(): Promise<any>;
+    dispose(): void;
+    setMockUserConfig({ isEnabled, mockUser }: {
+        isEnabled: boolean;
+        mockUser: MockUserUtils.MockUser;
+    }): void;
+}
+export { ApiEnv };
+/** @hidden */
+export declare class ArenaApi {
+    static version: string;
+    static ApiEnv: typeof ApiEnv;
+    private static sdk;
+    static onGameSDKLoaded(target: any, callback: any, env?: ApiEnv): void;
+    static dispose(): void;
+    static getInstance(env: ApiEnv, deferInit?: boolean): Promise<ArkadiumArenaSdk>;
+}
+
+===== dist/pkg/arkadium-game-sdk.d.ts =====
+import { ApiEnv, Backend } from './api/features/backend/backend.api';
+import { GameLifecycleGame } from './api/features/game-lifecycle/game-lifecycle.api';
+import { AdsGame } from './api/features/ads/';
+import { AuthGame } from './api/features/auth/';
+import { AnalyticsApiProxy } from './api/features/analytics/analytics.api';
+import { RpcProvider } from './api/core/rpc';
+import { TimeoutTesterContract } from './api/core/timeout-tester';
+import { PersistenceGame } from './api/features/persistence';
+import { Wallet, WalletGame } from './api/features/wallet';
+import { HostGame } from './api/features/host';
+import { LeaderboardGame } from './api/features/leaderboard';
+import { TournamentsGame } from './api/features/tournaments';
+import { RecorderGame } from './api/features/recorder';
+
+export declare class ArkadiumGameSdk {
+    version: string;
+    private currentEnv;
+    private arenaPingSender;
+    private arenaPingListener;
+    private rpcProvider;
+    private backendApi;
+    host: HostGame;
+    lifecycle: GameLifecycleGame;
+    ads: AdsGame;
+    auth: AuthGame;
+    analytics: AnalyticsApiProxy;
+    private timeoutTester;
+    persistence: PersistenceGame;
+    wallet: Wallet;
+    leaderboard: LeaderboardGame;
+    tournaments: TournamentsGame;
+    constructor({ rpcProvider, backendApi, host, lifecycle, ads, auth, analytics, timeoutTester, persistence, wallet, leaderboard, tournaments, recorder }: {
+        rpcProvider: RpcProvider;
+        backendApi: Backend;
+        host: HostGame;
+        lifecycle: GameLifecycleGame;
+        ads: AdsGame;
+        auth: AuthGame;
+        analytics: AnalyticsApiProxy;
+        timeoutTester: TimeoutTesterContract;
+        persistence: PersistenceGame;
+        wallet: WalletGame;
+        leaderboard: LeaderboardGame;
+        tournaments: TournamentsGame;
+        recorder: RecorderGame;
+    });
+    initialize(env: ApiEnv, isGameSide: boolean): Promise<void>;
+    getEnv(): ApiEnv;
+    updateWinReference(target: any): void;
+    debugMode(enabled: boolean): void;
+}
+export { ApiEnv };
+export { Dimension } from './api/features/analytics/dimensions';
+export { Event } from './api/features/analytics/events';
+interface EnvDiscoverer {
+    discover(): Promise<ApiEnv>;
+}
+export declare class GameApi {
+    static version: string;
+    private static sdk;
+    private static envDiscoverer;
+    static getInstance(): Promise<ArkadiumGameSdk>;
+    static setEnvDiscoverer(d: EnvDiscoverer): void;
+}
+
+===== dist/pkg/loader.d.ts =====
+import { ArkadiumGameSdk } from './arkadium-game-sdk';
+
+declare type API = ArkadiumGameSdk;
+export declare enum Env {
+    DEV = "DEV",
+    PROD = "PROD",
+    STAGING = "STAGING"
+}
+export declare function getInstance(env?: Env): Promise<API>;
+export {};
+
+===== dist/pkg/ping.module.d.ts =====
+/** @hidden */
+export declare class PingModule {
+    constructor();
+    $ping: import('./api/utils/observable').Observable<number>;
+    ping(): boolean;
+}
+/** @hidden */
+export declare class PingModuleProxy {
+    ping(): Promise<any>;
+}

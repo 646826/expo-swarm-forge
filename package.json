@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Dependency-free SwarmForge browser-game starter with a premium match-3 example.",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "create": "node scripts/create-game.mjs",
     "test": "node scripts/run-tests.mjs",
@@ -15,5 +17,12 @@
     "verify": "node scripts/verify.mjs",
     "arkadium:sync": "node scripts/sync-arkadium-snapshot.mjs",
     "arkadium:verify-snapshot": "node scripts/verify-arkadium-snapshot.mjs"
+  },
+  "dependencies": {
+    "@arkadiuminc/sdk": "2.66.2"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vite": "8.1.5"
   }
 }
