@@ -119,7 +119,11 @@ async function browserBuildFiles(projectDir, config) {
   const files = [];
   const localFiles = (await walkFiles(projectDir)).filter((file) => {
     const rel = relative(projectDir, file);
-    return !rel.startsWith(`${config.output}${sep}`) && !rel.startsWith(`test${sep}`) && rel !== 'game.config.json';
+    return !rel.startsWith(`${config.output}${sep}`)
+      && !rel.startsWith(`arkadium-dist${sep}`)
+      && !rel.startsWith(`test${sep}`)
+      && rel !== 'game.config.json'
+      && rel !== 'vite.config.ts';
   });
   for (const sourceFile of localFiles) {
     files.push({ sourceFile, outputPath: relative(projectDir, sourceFile) });
