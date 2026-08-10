@@ -1,0 +1,45 @@
+.integration-debug-panel {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 120;
+  width: min(390px, calc(100vw - 24px));
+  max-height: min(46vh, 420px);
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 218, 153, 0.34);
+  border-radius: 14px;
+  background: rgba(18, 10, 18, 0.94);
+  box-shadow: 0 12px 42px rgba(0, 0, 0, 0.45);
+  color: #fff4df;
+  font: 600 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  pointer-events: none;
+}
+
+.integration-debug-panel h2 {
+  margin: 0 0 8px;
+  color: #ffd799;
+  font: 800 13px/1.2 system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.integration-debug-panel pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+@media (max-width: 640px) {
+  .integration-debug-panel {
+    max-height: 38vh;
+    font-size: 10px;
+  }
+}
+
+@media print {
+  .integration-debug-panel {
+    display: none !important;
+  }
+}
