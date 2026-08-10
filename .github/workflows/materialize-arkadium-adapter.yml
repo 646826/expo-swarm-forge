@@ -46,10 +46,28 @@ jobs:
             echo 'No bootstrap payload remains; nothing to materialize.'
             exit 0
           fi
-          if (( ${#parts[@]} != 8 )); then
-            printf 'Expected 8 payload parts, found %s.\n' "${#parts[@]}" >&2
+          if (( ${#parts[@]} != 10 )); then
+            printf 'Expected 10 payload parts, found %s.\n' "${#parts[@]}" >&2
             exit 1
           fi
+          expected=(
+            .bootstrap/arkadium-snapshot/part-000
+            .bootstrap/arkadium-snapshot/part-001
+            .bootstrap/arkadium-snapshot/part-002
+            .bootstrap/arkadium-snapshot/part-003
+            .bootstrap/arkadium-snapshot/part-004
+            .bootstrap/arkadium-snapshot/part-004a
+            .bootstrap/arkadium-snapshot/part-004b
+            .bootstrap/arkadium-snapshot/part-005
+            .bootstrap/arkadium-snapshot/part-006
+            .bootstrap/arkadium-snapshot/part-007
+          )
+          for index in "${!expected[@]}"; do
+            if [[ "${parts[$index]}" != "${expected[$index]}" ]]; then
+              printf 'Unexpected payload part at index %s: %s\n' "$index" "${parts[$index]}" >&2
+              exit 1
+            fi
+          done
           echo 'HAS_SNAPSHOT_PAYLOAD=true' >> "$GITHUB_ENV"
 
       - name: Verify and extract reviewed snapshot payload
