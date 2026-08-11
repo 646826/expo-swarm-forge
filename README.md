@@ -55,6 +55,18 @@ The validator rejects unknown fields, accessors, symbol keys, invalid mode combi
 
 `arkadium-sandbox` uses the official DEV environment and Console analytics. Real assigned game IDs, App Insights configuration, DEV credentials, and production endpoints are added later through protected deployment configuration; they are not fabricated in source control.
 
+## Local browser telemetry evidence
+
+The ordinary standalone release remains network-silent because its committed runtime manifest has no Game Eye endpoint. A separately built, validated non-production candidate may supply a reviewed `/v1/game-events` endpoint. In that explicit configuration, adding `telemetryEvidence=1` to the URL installs the non-enumerable browser function:
+
+```text
+globalThis.__CANYON_TELEMETRY_EVIDENCE__()
+```
+
+The function returns a frozen allowlisted snapshot containing only the session ID, exact build and game versions, platform mode, nullable SDK version, structural lifecycle counts, queue counters, and the latest bounded delivery result. It does not expose the endpoint, request bodies, credentials, tokens, cookies, publisher profile or save data. Standalone evidence uses `sdkVersion: null`; reviewed Arkadium Sandbox and DEV evidence use exact SDK `2.66.2`. The API is never installed for `arkadium-prod`, without the explicit query opt-in, or when no real Game Eye sink exists, and it is removed during runtime destruction.
+
+This browser snapshot is a correlation boundary, not by itself proof of persistence. The subsequent Workstream C gates bind it to real Ark Eye, NATS JetStream, the app-owned durable consumer, and ClickHouse evidence.
+
 ## Five-minute start
 
 Requirements: Node.js 22 or newer. No package installation is required.
