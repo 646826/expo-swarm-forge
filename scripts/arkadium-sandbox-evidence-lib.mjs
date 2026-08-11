@@ -22,27 +22,26 @@ const UNSAFE_EVIDENCE_REPORT = Object.freeze({
   summary: Object.freeze({}),
 });
 
-function isPlainObject(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
 /**
  * Inspects descriptors rather than property values so accessors, symbols,
- * hidden fields and cyclic or exotic objects are rejected before the core
- * schema verifier can read any evidence property.
+ * hidden fields, cyclic objects and exotic prototypes are rejected before
+ * the core schema verifier can read any evidence property.
  */
 function hasUnsafeStructure(value, seen = new Set(), depth = 0) {
   if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return false;
   if (typeof value !== 'object' || depth > MAX_STRUCTURE_DEPTH || seen.has(value)) return true;
   if (Object.getOwnPropertySymbols(value).length > 0) return true;
-  if (!Array.isArray(value) && !isPlainObject(value)) return true;
+
+  const isArray = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (isArray) {
+    if (prototype !== Array.prototype) return true;
+  } else if (prototype !== Object.prototype && prototype !== null) {
+    return true;
+  }
 
   const descriptors = Object.getOwnPropertyDescriptors(value);
-  const entries = Object.entries(descriptors).filter(([key]) => (
-    !Array.isArray(value) || key !== 'length'
-  ));
+  const entries = Object.entries(descriptors).filter(([key]) => !isArray || key !== 'length');
   if (entries.length > MAX_STRUCTURE_FIELDS) return true;
 
   seen.add(value);
