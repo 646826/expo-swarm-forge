@@ -121,6 +121,7 @@ async function browserBuildFiles(projectDir, config) {
     const rel = relative(projectDir, file);
     return !rel.startsWith(`${config.output}${sep}`)
       && !rel.startsWith(`arkadium-dist${sep}`)
+      && !rel.startsWith(`telemetry-dist${sep}`)
       && !rel.startsWith(`test${sep}`)
       && rel !== 'game.config.json'
       && rel !== 'vite.config.ts';
