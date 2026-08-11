@@ -17,6 +17,7 @@ const REQUIRED_CAPTURE_QUERY = 'seed=12345&telemetryEvidence=1';
 const START_SELECTOR = 'button[data-action="start"]';
 const PAUSE_SELECTOR = 'button[data-action="pause"]';
 const RESUME_SELECTOR = 'button[data-action="resume"]';
+let captureStage = 'arguments';
 
 function option(name) {
   const index = process.argv.indexOf(name);
@@ -252,6 +253,7 @@ function requestKind(value) {
 }
 
 async function capture() {
+  captureStage = 'arguments';
   const launchUrl = validateLocalTelemetryCaptureUrl(option('--url'));
   if (!launchUrl.includes(REQUIRED_CAPTURE_QUERY)) {
     throw new Error('Local telemetry capture query is invalid.');
@@ -261,10 +263,13 @@ async function capture() {
     throw new Error('Expected local telemetry build SHA is invalid.');
   }
   const output = validateLocalTelemetryCaptureOutput(ROOT, option('--output'));
+
+  captureStage = 'launch';
   const browser = await launchChrome(launchUrl);
   let client = null;
 
   try {
+    captureStage = 'connect';
     client = await CdpClient.connect(browser.target.webSocketDebuggerUrl);
     let officialRuntimeRequests = 0;
     let gameEventPostCount = 0;
@@ -281,17 +286,15 @@ async function capture() {
     client.on('Runtime.consoleAPICalled', ({ type } = {}) => {
       if (type === 'error' || type === 'assert') consoleErrorCount += 1;
     });
-    client.on('Log.entryAdded', ({ entry } = {}) => {
-      if (entry?.level === 'error') consoleErrorCount += 1;
-    });
 
+    captureStage = 'domains';
     await Promise.all([
       client.send('Page.enable'),
       client.send('Runtime.enable'),
       client.send('Network.enable'),
-      client.send('Log.enable'),
     ]);
 
+    captureStage = 'browser-apis';
     await waitFor('local telemetry browser APIs', async () => client.evaluate(`(() => (
       typeof globalThis.__CANYON_TELEMETRY_EVIDENCE__ === 'function'
       && typeof globalThis.__CANYON_SANDBOX_DRIVER__ === 'object'
@@ -300,12 +303,14 @@ async function capture() {
       && document.querySelector('[data-role="boot-error"]')?.hidden === true
     ))()`));
 
+    captureStage = 'start';
     await clickSelector(client, START_SELECTOR);
     const beforeMove = await waitFor('playing telemetry driver', async () => {
       const value = await readDriverSnapshot(client);
       return value?.mode === 'playing' && value?.status === 'playing' ? value : null;
     });
 
+    captureStage = 'move';
     const move = await client.evaluate(
       'globalThis.__CANYON_SANDBOX_DRIVER__.nextMove()',
     );
@@ -321,17 +326,21 @@ async function capture() {
         : null;
     }, MOVE_TIMEOUT_MS);
 
+    captureStage = 'pause';
     await clickSelector(client, PAUSE_SELECTOR);
     const paused = await waitFor('local telemetry pause', async () => {
       const value = await readDriverSnapshot(client);
       return value?.mode === 'paused' ? true : null;
     });
+
+    captureStage = 'resume';
     await clickSelector(client, RESUME_SELECTOR);
     const resumed = await waitFor('local telemetry resume', async () => {
       const value = await readDriverSnapshot(client);
       return value?.mode === 'playing' ? true : null;
     });
 
+    captureStage = 'delivery';
     const telemetry = await waitFor('delivered local telemetry evidence', async () => {
       const value = await client.evaluate(
         'globalThis.__CANYON_TELEMETRY_EVIDENCE__()',
@@ -350,6 +359,7 @@ async function capture() {
     });
     const title = await client.evaluate('document.title');
 
+    captureStage = 'evidence';
     const evidence = createLocalTelemetryCaptureEvidence({
       capturedAt: new Date().toISOString(),
       expectedBuildSha,
@@ -363,8 +373,11 @@ async function capture() {
       gameEventPostCount,
       consoleErrorCount,
     });
+
+    captureStage = 'write';
     await mkdir(dirname(output), { recursive: true });
     await writeFile(output, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+    captureStage = 'complete';
     console.log(JSON.stringify({
       source: evidence.source,
       buildSha: evidence.expectedBuildSha,
@@ -372,14 +385,18 @@ async function capture() {
       eventCount: evidence.telemetry.eventCount,
     }));
   } finally {
-    client?.close();
-    await browser.close();
+    try {
+      client?.close();
+    } catch {
+      // Evidence capture is already decided; cleanup cannot change its result.
+    }
+    await browser.close().catch(() => undefined);
   }
 }
 
 try {
   await capture();
 } catch {
-  console.error('Local telemetry browser capture failed.');
+  console.error(`Local telemetry browser capture failed at ${captureStage}.`);
   process.exit(1);
 }
