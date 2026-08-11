@@ -10,7 +10,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -25,6 +25,76 @@ jobs:
 
       - name: Run complete repository verification
         run: npm run verify
+
+      - name: Capture real standalone telemetry in Chrome
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p evidence
+
+          node scripts/local-game-eye-fixture.mjs \
+            > "$RUNNER_TEMP/canyon-telemetry-fixture.log" 2>&1 &
+          fixture_pid=$!
+          node scripts/serve.mjs example/canyon-charms/telemetry-dist 4173 \
+            > "$RUNNER_TEMP/canyon-telemetry-server.log" 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill "$server_pid" "$fixture_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3001/health > /dev/null \
+              && curl --fail --silent http://127.0.0.1:4173/runtime-manifest.json > /dev/null \
+              && curl --fail --silent http://127.0.0.1:4173/telemetry-candidate-report.json > /dev/null; then
+              break
+            fi
+            [[ "$attempt" -lt 30 ]] || {
+              cat "$RUNNER_TEMP/canyon-telemetry-fixture.log" >&2
+              cat "$RUNNER_TEMP/canyon-telemetry-server.log" >&2
+              exit 1
+            }
+            sleep 1
+          done
+
+          npm run capture:telemetry -- \
+            --url 'http://127.0.0.1:4173/?seed=12345&telemetryEvidence=1' \
+            --expected-build-sha "$GITHUB_SHA" \
+            --output evidence/local-browser-telemetry.json
+
+          test -s evidence/local-browser-telemetry.json
+
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const assert = require('node:assert/strict');
+          const evidence = JSON.parse(readFileSync('evidence/local-browser-telemetry.json', 'utf8'));
+          assert.equal(evidence.schemaVersion, 1);
+          assert.equal(evidence.source, 'local-browser-telemetry-capture');
+          assert.equal(evidence.expectedBuildSha, process.env.GITHUB_SHA);
+          assert.equal(evidence.browser.title, 'Canyon Charms');
+          assert.equal(evidence.browser.runtimeMode, 'standalone');
+          assert.equal(evidence.browser.officialRuntimeRequests, 0);
+          assert.ok(evidence.browser.gameEventPostCount >= 1);
+          assert.equal(evidence.browser.consoleErrorCount, 0);
+          assert.equal(evidence.interaction.initialMoves, 20);
+          assert.equal(evidence.interaction.finalMoves, 19);
+          assert.ok(evidence.interaction.scoreDelta >= 0);
+          assert.equal(evidence.interaction.paused, true);
+          assert.equal(evidence.interaction.resumed, true);
+          assert.equal(evidence.telemetry.buildSha, process.env.GITHUB_SHA);
+          assert.equal(evidence.telemetry.platformMode, 'standalone');
+          assert.equal(evidence.telemetry.sdkVersion, null);
+          assert.ok(evidence.telemetry.eventCount >= 1);
+          assert.equal(evidence.telemetry.queueCount, 0);
+          assert.equal(evidence.telemetry.droppedCount, 0);
+          assert.equal(evidence.telemetry.inFlight, false);
+          assert.equal(evidence.telemetry.lastDelivery.outcome, 'delivered');
+          assert.equal(evidence.telemetry.lastDelivery.httpStatus, 202);
+          assert.doesNotMatch(
+            JSON.stringify(evidence),
+            /endpoint|url|credential|authorization|access[_ -]?token|refresh[_ -]?token|password|cookie|profile|save[_ -]?payload|app[_ -]?insights|request[_ -]?id|transaction[_ -]?id/i,
+          );
+          NODE
 
       - name: Boot current Canyon Charms build in Chrome
         shell: bash
@@ -192,6 +262,9 @@ jobs:
             example/canyon-charms/dist/build-report.json
             example/canyon-charms/dist/student-handbook-ru.pdf
             example/canyon-charms/arkadium-dist/
+            example/canyon-charms/telemetry-dist/runtime-manifest.json
+            example/canyon-charms/telemetry-dist/telemetry-candidate-report.json
+            evidence/local-browser-telemetry.json
             ${{ runner.temp }}/canyon-current.png
             ${{ runner.temp }}/canyon-current-dom.html
             ${{ runner.temp }}/canyon-current-chrome.log
