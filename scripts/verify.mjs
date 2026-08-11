@@ -43,6 +43,15 @@ steps.push(
     ],
   },
   {
+    name: 'exact standalone telemetry candidate bundle',
+    command: process.execPath,
+    args: [
+      'scripts/build-telemetry-candidate.mjs',
+      '--config',
+      'config/runtime.telemetry.example.json',
+    ],
+  },
+  {
     name: 'Russian student handbook',
     command: process.execPath,
     args: [
@@ -67,4 +76,4 @@ for (const step of steps) {
   }
 }
 
-console.log('\nVerification complete: tests, checks, standalone packages, exact Arkadium candidate, handbook, and committed integration snapshots passed.');
+console.log('\nVerification complete: tests, checks, standalone packages, exact Arkadium and telemetry candidates, handbook, and committed integration snapshots passed.');
