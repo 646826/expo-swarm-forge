@@ -1,0 +1,218 @@
+name: Verify exact Arkadium Sandbox candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact lowercase 40-character commit SHA to verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: arkadium-sandbox-${{ inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      PREVIEW_PATH: sandbox-candidates/${{ inputs.candidate_sha }}
+    steps:
+      - name: Validate exact candidate SHA
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+      - name: Check out exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+
+      - name: Require trusted mainline candidate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$CANDIDATE_SHA" refs/remotes/origin/main; then
+            echo 'Candidate SHA is not reachable from the trusted main branch.' >&2
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Install exact locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run complete repository verification
+        run: npm run verify
+
+      - name: Write telemetry-free official Sandbox runtime config
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const { readFileSync, writeFileSync } = require('node:fs');
+          const config = JSON.parse(readFileSync('config/runtime.sandbox.example.json', 'utf8'));
+          const officialConfig = {
+            ...config,
+            gameEyeEndpoint: null,
+            buildSha: process.env.CANDIDATE_SHA,
+          };
+          writeFileSync(
+            'runtime.sandbox.official.json',
+            `${JSON.stringify(officialConfig, null, 2)}\n`,
+            'utf8',
+          );
+          NODE
+
+      - name: Rebuild exact Arkadium candidate
+        run: npm run build:arkadium -- --config runtime.sandbox.official.json --build-sha "$CANDIDATE_SHA"
+
+      - name: Assemble SHA-addressed Pages preview
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          site="$RUNNER_TEMP/arkadium-sandbox-site"
+          preview="$site/$PREVIEW_PATH"
+          mkdir -p "$preview"
+          cp -a example/canyon-charms/dist/. "$site/"
+          cp -a example/canyon-charms/arkadium-dist/. "$preview/"
+          touch "$site/.nojekyll"
+
+          CANDIDATE_SHA="$CANDIDATE_SHA" PREVIEW="$preview" node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const assert = require('node:assert/strict');
+          const root = process.env.PREVIEW;
+          const manifest = JSON.parse(readFileSync(`${root}/runtime-manifest.json`, 'utf8'));
+          const report = JSON.parse(readFileSync(`${root}/candidate-report.json`, 'utf8'));
+          assert.equal(manifest.mode, 'arkadium-sandbox');
+          assert.equal(manifest.arkadiumEnvironment, 'DEV');
+          assert.equal(manifest.gameEyeEndpoint, null);
+          assert.equal(manifest.buildSha, process.env.CANDIDATE_SHA);
+          assert.equal(report.buildSha, process.env.CANDIDATE_SHA);
+          assert.equal(report.sdkVersion, '2.66.2');
+          NODE
+
+          test -z "$(find "$site" -type l -print -quit)"
+          test -z "$(find "$site" -type f -name '*.map' -print -quit)"
+
+      - name: Read enabled GitHub Pages configuration
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
+
+      - name: Upload SHA-addressed Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          path: ${{ runner.temp }}/arkadium-sandbox-site
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: prepare
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy exact candidate preview
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128
+
+  sandbox:
+    runs-on: ubuntu-latest
+    needs: deploy
+    timeout-minutes: 20
+    environment:
+      name: arkadium-sandbox
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      PREVIEW_PATH: sandbox-candidates/${{ inputs.candidate_sha }}
+      PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+      ARKADIUM_SANDBOX_AUTOMATION_JSON: ${{ secrets.ARKADIUM_SANDBOX_AUTOMATION_JSON }}
+    steps:
+      - name: Check out exact candidate evidence tools
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Install exact locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify deployed candidate identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -n "$PAGE_URL"
+          preview_url="${PAGE_URL%/}/$PREVIEW_PATH/"
+          mkdir -p evidence/arkadium-sandbox
+          curl --fail --silent --show-error --location \
+            --connect-timeout 10 --max-time 30 \
+            "${preview_url}runtime-manifest.json" \
+            -o "$RUNNER_TEMP/runtime-manifest.json"
+          CANDIDATE_SHA="$CANDIDATE_SHA" node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const assert = require('node:assert/strict');
+          const manifest = JSON.parse(readFileSync(process.env.RUNNER_TEMP + '/runtime-manifest.json', 'utf8'));
+          assert.equal(manifest.mode, 'arkadium-sandbox');
+          assert.equal(manifest.gameEyeEndpoint, null);
+          assert.equal(manifest.buildSha, process.env.CANDIDATE_SHA);
+          NODE
+
+      - name: Capture official Arkadium Sandbox evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -n "$ARKADIUM_SANDBOX_AUTOMATION_JSON"
+          preview_url="${PAGE_URL%/}/$PREVIEW_PATH/"
+          node scripts/capture-arkadium-sandbox-evidence.mjs \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --preview-url "$preview_url" \
+            --output evidence/arkadium-sandbox
+
+      - name: Verify official Sandbox evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          now_ms="$(date +%s%3N)"
+          node scripts/verify-arkadium-sandbox-evidence.mjs \
+            --directory evidence/arkadium-sandbox \
+            --expected-build-sha "$CANDIDATE_SHA" \
+            --expected-sdk-version 2.66.2 \
+            --now-ms "$now_ms" \
+            --max-age-ms 900000
+          grep -F '"releaseState": "sandbox-verified"' \
+            evidence/arkadium-sandbox/sandbox-verification.json
+
+      - name: Upload official Sandbox evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: arkadium-sandbox-evidence-${{ inputs.candidate_sha }}
+          path: |
+            evidence/arkadium-sandbox/sandbox-status.json
+            evidence/arkadium-sandbox/sandbox-events.json
+            evidence/arkadium-sandbox/rpc-diagnostics.json
+            evidence/arkadium-sandbox/sandbox-console.log
+            evidence/arkadium-sandbox/sandbox-page.png
+            evidence/arkadium-sandbox/sandbox-verification.json
+          if-no-files-found: warn
+          retention-days: 14

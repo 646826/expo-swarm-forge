@@ -2,6 +2,7 @@ import { createGameEyeSink } from '../../../../packages/game-events/src/index.js
 import { NO_CAPABILITIES } from '../../../../packages/publisher-platform/src/index.js';
 import { createIntegrationDebugPanel } from './debug-panel.js';
 import { createCanyonIntegration as createCoreIntegration } from './runtime-core.js';
+import { installSandboxEvidenceApi } from './sandbox-evidence.js';
 
 const EXPECTED_OFFICIAL_SDK_VERSION = '2.66.2';
 
@@ -100,6 +101,7 @@ function instrumentCandidateIntegration({
   platform,
   gameEyeSink,
   runtimeManifest,
+  evidenceApi,
 }) {
   const debugPanel = gameEyeSink
     ? createIntegrationDebugPanel({
@@ -145,6 +147,7 @@ function instrumentCandidateIntegration({
     try {
       await integration.destroy();
     } finally {
+      evidenceApi?.destroy();
       gameEyeSink?.flushOnUnload();
       gameEyeSink?.destroy({ useBeacon: false });
       unsubscribeDiagnostics?.();
@@ -195,11 +198,19 @@ export function createCanyonIntegration(options = {}) {
     publisherMode: true,
     sinks: gameEyeSink ? [...configuredSinks, gameEyeSink] : configuredSinks,
   });
+  const sandboxSessionId = gameEyeSink?.sessionId ?? globalThis.crypto?.randomUUID?.();
+  const evidenceApi = installSandboxEvidenceApi({
+    runtimeManifest,
+    sdkVersion: EXPECTED_OFFICIAL_SDK_VERSION,
+    sessionId: sandboxSessionId,
+    getDiagnostics: () => integration.diagnostics(),
+  });
 
   return instrumentCandidateIntegration({
     integration,
     platform,
     gameEyeSink,
     runtimeManifest,
+    evidenceApi,
   });
 }
