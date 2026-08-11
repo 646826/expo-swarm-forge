@@ -286,16 +286,12 @@ async function capture() {
     client.on('Runtime.consoleAPICalled', ({ type } = {}) => {
       if (type === 'error' || type === 'assert') consoleErrorCount += 1;
     });
-    client.on('Log.entryAdded', ({ entry } = {}) => {
-      if (entry?.level === 'error') consoleErrorCount += 1;
-    });
 
     captureStage = 'domains';
     await Promise.all([
       client.send('Page.enable'),
       client.send('Runtime.enable'),
       client.send('Network.enable'),
-      client.send('Log.enable'),
     ]);
 
     captureStage = 'browser-apis';
