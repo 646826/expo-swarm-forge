@@ -6,6 +6,7 @@
   "buildBudgetBytes": 750000,
   "browserSharedRoots": [
     "packages/game-events/src",
+    "packages/integration-config/src",
     "packages/publisher-platform/src"
   ]
 }
