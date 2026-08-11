@@ -385,8 +385,12 @@ async function capture() {
       eventCount: evidence.telemetry.eventCount,
     }));
   } finally {
-    client?.close();
-    await browser.close();
+    try {
+      client?.close();
+    } catch {
+      // Evidence capture is already decided; cleanup cannot change its result.
+    }
+    await browser.close().catch(() => undefined);
   }
 }
 
