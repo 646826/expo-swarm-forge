@@ -14,6 +14,7 @@
     "build": "node scripts/build.mjs",
     "build:arkadium": "node scripts/build-arkadium-candidate.mjs",
     "build:telemetry": "node scripts/build-telemetry-candidate.mjs",
+    "capture:telemetry": "node scripts/capture-local-telemetry-evidence.mjs",
     "package": "node scripts/package.mjs",
     "serve": "node scripts/serve.mjs",
     "verify": "node scripts/verify.mjs",
