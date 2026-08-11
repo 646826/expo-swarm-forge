@@ -4,10 +4,16 @@ import { defineConfig } from 'vite';
 const root = fileURLToPath(new URL('.', import.meta.url));
 
 const sandboxDriverSource = String.raw`
-const sandboxEvidence = new URLSearchParams(location.search).get('sandboxEvidence') === '1';
+const evidenceSearch = new URLSearchParams(location.search);
+const sandboxEvidence = evidenceSearch.get('sandboxEvidence') === '1';
+const telemetryEvidence = evidenceSearch.get('telemetryEvidence') === '1';
 const sandboxRuntimeManifest = globalThis.__CANYON_RUNTIME_MANIFEST__ ?? null;
-if (sandboxEvidence
-  && sandboxRuntimeManifest?.mode === 'arkadium-sandbox'
+const deterministicEvidence = (
+  sandboxEvidence && sandboxRuntimeManifest?.mode === 'arkadium-sandbox'
+) || (
+  telemetryEvidence && sandboxRuntimeManifest?.mode === 'standalone'
+);
+if (deterministicEvidence
   && sandboxRuntimeManifest.mode !== 'arkadium-prod'
   && !Object.prototype.hasOwnProperty.call(globalThis, '__CANYON_SANDBOX_DRIVER__')) {
   const pointForSandboxDriver = (index) => {
