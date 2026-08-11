@@ -148,3 +148,23 @@ test('bundle rejects a top-level accessor without invoking it', () => {
   assert.equal(report.releaseState, 'contract-ready');
   assert.equal(getterCalls, 0);
 });
+
+test('array evidence with an exotic prototype is rejected before inherited accessors run', () => {
+  let getterCalls = 0;
+  const calls = lifecycleCalls();
+  const exoticPrototype = Object.create(Array.prototype);
+  Object.defineProperty(exoticPrototype, 'some', {
+    get() {
+      getterCalls += 1;
+      return Array.prototype.some;
+    },
+  });
+  Object.setPrototypeOf(calls, exoticPrototype);
+
+  const evidence = combinedEvidence();
+  evidence.observedCalls = calls;
+  const report = verifySandboxEvidence(evidence, options);
+  assert.equal(report.ok, false);
+  assert.equal(report.releaseState, 'contract-ready');
+  assert.equal(getterCalls, 0);
+});
