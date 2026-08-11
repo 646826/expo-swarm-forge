@@ -80,13 +80,14 @@ test('build copies allowlisted shared modules into the static server root', asyn
   }
 });
 
-test('the Canyon Charms release explicitly packages both runtime dependencies', async () => {
+test('the Canyon Charms release explicitly packages every browser runtime dependency', async () => {
   const config = JSON.parse(await readFile(
     join(ROOT, 'example', 'canyon-charms', 'game.config.json'),
     'utf8',
   ));
   assert.deepEqual(config.browserSharedRoots, [
     'packages/game-events/src',
+    'packages/integration-config/src',
     'packages/publisher-platform/src',
   ]);
 });
