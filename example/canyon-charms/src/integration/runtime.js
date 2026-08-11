@@ -3,8 +3,15 @@ import { NO_CAPABILITIES } from '../../../../packages/publisher-platform/src/ind
 import { createIntegrationDebugPanel } from './debug-panel.js';
 import { createCanyonIntegration as createCoreIntegration } from './runtime-core.js';
 import { installSandboxEvidenceApi } from './sandbox-evidence.js';
+import { installTelemetryEvidenceApi } from './telemetry-evidence.js';
 
 const EXPECTED_OFFICIAL_SDK_VERSION = '2.66.2';
+
+function runtimeSdkVersion(runtimeManifest) {
+  return runtimeManifest.mode === 'standalone'
+    ? null
+    : EXPECTED_OFFICIAL_SDK_VERSION;
+}
 
 function createDeferredRuntimePlatform(runtimeManifest) {
   let platformPromise = null;
@@ -89,7 +96,9 @@ function createCandidateGameEyeSink(runtimeManifest) {
       gameVersion: runtimeManifest.gameVersion,
       buildSha: runtimeManifest.buildSha,
       platformMode: runtimeManifest.mode,
-      sdkVersion: EXPECTED_OFFICIAL_SDK_VERSION,
+      sdkVersion: runtimeManifest.mode === 'standalone'
+        ? null
+        : EXPECTED_OFFICIAL_SDK_VERSION,
       locale: 'en-US',
       userState: 'anonymous',
     },
@@ -102,6 +111,7 @@ function instrumentCandidateIntegration({
   gameEyeSink,
   runtimeManifest,
   evidenceApi,
+  telemetryEvidenceApi,
 }) {
   const debugPanel = gameEyeSink
     ? createIntegrationDebugPanel({
@@ -147,6 +157,7 @@ function instrumentCandidateIntegration({
     try {
       await integration.destroy();
     } finally {
+      telemetryEvidenceApi?.destroy();
       evidenceApi?.destroy();
       gameEyeSink?.flushOnUnload();
       gameEyeSink?.destroy({ useBeacon: false });
@@ -198,13 +209,25 @@ export function createCanyonIntegration(options = {}) {
     publisherMode: true,
     sinks: gameEyeSink ? [...configuredSinks, gameEyeSink] : configuredSinks,
   });
+  const sdkVersion = runtimeSdkVersion(runtimeManifest);
   const sandboxSessionId = gameEyeSink?.sessionId ?? globalThis.crypto?.randomUUID?.();
   const evidenceApi = installSandboxEvidenceApi({
     runtimeManifest,
-    sdkVersion: EXPECTED_OFFICIAL_SDK_VERSION,
+    sdkVersion,
     sessionId: sandboxSessionId,
     getDiagnostics: () => integration.diagnostics(),
   });
+  const telemetryEvidenceApi = gameEyeSink
+    ? installTelemetryEvidenceApi({
+      runtimeManifest,
+      sdkVersion,
+      sessionId: gameEyeSink.sessionId,
+      getIntegrationDiagnostics: () => integration.diagnostics(),
+      getDeliveryDiagnostics: () => gameEyeSink.diagnostics(),
+      globalImpl: globalThis,
+      search: globalThis.location?.search ?? '',
+    })
+    : null;
 
   return instrumentCandidateIntegration({
     integration,
@@ -212,5 +235,6 @@ export function createCanyonIntegration(options = {}) {
     gameEyeSink,
     runtimeManifest,
     evidenceApi,
+    telemetryEvidenceApi,
   });
 }
