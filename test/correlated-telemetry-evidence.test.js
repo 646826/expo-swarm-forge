@@ -171,6 +171,9 @@ test('cross-bundle identity, ordering, freshness, persistence and ACK drift fail
     ['redelivery', bundle({ arkEye: arkEyeEvidence({ redelivered: 1 }) })],
     ['consumer readiness', bundle({ arkEye: arkEyeEvidence({ consumerReadyAtMs: STARTED_AT_MS + 1 }) })],
     ['browser timing', bundle({ arkEye: arkEyeEvidence({ browserCapturedAtMs: STARTED_AT_MS - 1 }) })],
+    ['correlation before Sandbox completion', bundle({
+      arkEye: arkEyeEvidence({ generatedAtMs: SANDBOX_GENERATED_AT_MS - 1 }),
+    })],
     ['stale Ark Eye evidence', bundle({ arkEye: arkEyeEvidence({ generatedAtMs: NOW_MS - options.maxAgeMs - 1 }) })],
     ['unverified Sandbox', bundle({
       sandbox: {
