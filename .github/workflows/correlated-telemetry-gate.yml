@@ -1,0 +1,168 @@
+name: Correlated telemetry gate CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/correlated-telemetry-evidence-lib.mjs'
+      - 'scripts/verify-correlated-telemetry-evidence.mjs'
+      - '.github/actions/verify-correlated-telemetry/**'
+      - '.github/workflows/correlated-telemetry-gate.yml'
+      - 'test/correlated-telemetry-*.test.js'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/correlated-telemetry-evidence-lib.mjs'
+      - 'scripts/verify-correlated-telemetry-evidence.mjs'
+      - '.github/actions/verify-correlated-telemetry/**'
+      - '.github/workflows/correlated-telemetry-gate.yml'
+      - 'test/correlated-telemetry-*.test.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: correlated-telemetry-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact gate revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Generate exact correlated evidence fixtures
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p evidence
+          node <<'NODE'
+          const { writeFileSync } = require('node:fs');
+
+          const buildSha = process.env.CANDIDATE_SHA;
+          const sessionId = '01234567-89ab-4cde-8f01-23456789abcd';
+          const nowMs = Date.now();
+          const startedAtMs = nowMs - 60_000;
+          const sandboxGeneratedAtMs = nowMs - 2_000;
+          const arkEyeGeneratedAtMs = nowMs - 500;
+          const write = (path, value) => writeFileSync(
+            path,
+            `${JSON.stringify(value, null, 2)}\n`,
+            'utf8',
+          );
+
+          writeFileSync('evidence/sandbox-verification.json', `${JSON.stringify({
+            ok: true,
+            releaseState: 'sandbox-verified',
+            errors: [],
+            summary: {
+              lifecycleCalls: 7,
+              scoreCalls: 2,
+              finalScore: 560,
+              levelId: '1',
+              rpcRequests: 8,
+              hostPauseObserved: true,
+              hostResumeObserved: true,
+            },
+          }, null, 2)}\n`, 'utf8');
+          writeFileSync('evidence/sandbox-status.json', `${JSON.stringify({
+            schemaVersion: 1,
+            source: 'official-arkadium-sandbox',
+            sessionId,
+            buildSha,
+            sdkVersion: '2.66.2',
+            startedAtMs,
+            generatedAtMs: sandboxGeneratedAtMs,
+            hostPauseObserved: true,
+            hostResumeObserved: true,
+            bootErrorVisible: false,
+            consoleErrorCount: 0,
+          }, null, 2)}\n`, 'utf8');
+          writeFileSync('evidence/sandbox-events.json', `${JSON.stringify({
+            schemaVersion: 1,
+            source: 'official-arkadium-sandbox',
+            sessionId,
+            buildSha,
+            sdkVersion: '2.66.2',
+            generatedAtMs: sandboxGeneratedAtMs,
+            observedCalls: [
+              'ready',
+              'gameStart',
+              'levelStart:1',
+              'score:240',
+              'score:560',
+              'levelEnd:1',
+              'gameEnd',
+            ],
+          }, null, 2)}\n`, 'utf8');
+          writeFileSync('evidence/ark-eye-correlation.json', `${JSON.stringify({
+            schemaVersion: 1,
+            source: 'ark-eye-sandbox-telemetry-correlation',
+            buildSha,
+            sessionId,
+            sdkVersion: '2.66.2',
+            platformMode: 'arkadium-sandbox',
+            generatedAtMs: arkEyeGeneratedAtMs,
+            consumerReadyAtMs: startedAtMs - 1_000,
+            browserCapturedAtMs: sandboxGeneratedAtMs - 100,
+            eventCount: 16,
+            firstEventName: 'sdk_initialize_started',
+            lastEventName: 'game_end',
+            firstSequence: 1,
+            lastSequence: 16,
+            clickHouseRowCount: 16,
+            sessionFirstStreamSequence: 101,
+            sessionLastStreamSequence: 116,
+            ackFloorStreamSequence: 116,
+            pending: 0,
+            ackPending: 0,
+            redelivered: 0,
+            browserEvidenceSha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            rowsSha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          }, null, 2)}\n`, 'utf8');
+          NODE
+
+      - name: Execute repository-owned correlated gate
+        uses: ./.github/actions/verify-correlated-telemetry
+        with:
+          sandbox-verification: evidence/sandbox-verification.json
+          sandbox-status: evidence/sandbox-status.json
+          sandbox-events: evidence/sandbox-events.json
+          ark-eye-evidence: evidence/ark-eye-correlation.json
+          expected-build-sha: ${{ github.sha }}
+          output: evidence/correlated-telemetry-report.json
+
+      - name: Validate exact promoted release state
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const report = JSON.parse(
+            readFileSync('evidence/correlated-telemetry-report.json', 'utf8'),
+          );
+          if (report.ok !== true
+            || report.releaseState !== 'sandbox-telemetry-verified'
+            || report.errors.length !== 0
+            || report.summary.buildSha !== process.env.CANDIDATE_SHA
+            || report.summary.sdkVersion !== '2.66.2'
+            || report.summary.telemetryEventCount !== 16
+            || report.summary.clickHouseRowCount !== 16
+            || report.summary.ackFloorStreamSequence !== 116) {
+            process.exit(1);
+          }
+          NODE
