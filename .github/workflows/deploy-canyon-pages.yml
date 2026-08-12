@@ -25,6 +25,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      pages_enabled: ${{ steps.pages.outputs.enabled }}
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -77,15 +79,50 @@ jobs:
       # One-time repository prerequisite:
       # Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
       # The default GITHUB_TOKEN cannot perform first-time Pages enablement.
+      - name: Detect enabled GitHub Pages configuration
+        id: pages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PAGES_API_URL: ${{ github.api_url }}/repos/${{ github.repository }}/pages
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          status="$(curl \
+            --silent \
+            --show-error \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$PAGES_API_URL")"
+          case "$status" in
+            200)
+              printf 'enabled=true\n' >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
+              echo 'GitHub Pages is not enabled; artifact upload and deployment are skipped.'
+              ;;
+            *)
+              printf 'GitHub Pages configuration lookup failed with HTTP %s.\n' \
+                "$status" >&2
+              exit 1
+              ;;
+          esac
+
       - name: Read enabled GitHub Pages configuration
+        if: steps.pages.outputs.enabled == 'true'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
 
       - name: Upload Pages artifact
+        if: steps.pages.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
         with:
           path: example/canyon-charms/dist
 
   deploy:
+    if: needs.build.outputs.pages_enabled == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
