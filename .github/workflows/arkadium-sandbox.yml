@@ -21,9 +21,14 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment:
+      name: arkadium-sandbox
+    outputs:
+      telemetry_enabled: ${{ steps.runtime.outputs.telemetry_enabled }}
     env:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       PREVIEW_PATH: sandbox-candidates/${{ inputs.candidate_sha }}
+      GAME_EYE_ENDPOINT: ${{ secrets.GAME_EYE_ENDPOINT }}
     steps:
       - name: Validate exact candidate SHA
         shell: bash
@@ -59,21 +64,53 @@ jobs:
       - name: Run complete repository verification
         run: npm run verify
 
-      - name: Write telemetry-free official Sandbox runtime config
+      - name: Write optional protected telemetry official Sandbox runtime config
+        id: runtime
         shell: bash
         run: |
           set -Eeuo pipefail
           node <<'NODE'
-          const { readFileSync, writeFileSync } = require('node:fs');
-          const config = JSON.parse(readFileSync('config/runtime.sandbox.example.json', 'utf8'));
+          const {
+            appendFileSync,
+            readFileSync,
+            writeFileSync,
+          } = require('node:fs');
+
+          const source = process.env.GAME_EYE_ENDPOINT ?? '';
+          let endpoint = null;
+          if (source.length > 0) {
+            if (source !== source.trim() || source.length > 2048) {
+              throw new Error('Protected Game Eye endpoint is invalid.');
+            }
+            try {
+              endpoint = new URL(process.env.GAME_EYE_ENDPOINT);
+            } catch {
+              throw new Error('Protected Game Eye endpoint is invalid.');
+            }
+            if (endpoint.protocol !== 'https:'
+              || endpoint.username
+              || endpoint.password
+              || endpoint.hash) {
+              throw new Error('Protected Game Eye endpoint is invalid.');
+            }
+          }
+
+          const config = JSON.parse(
+            readFileSync('config/runtime.sandbox.example.json', 'utf8'),
+          );
           const officialConfig = {
             ...config,
-            gameEyeEndpoint: null,
+            gameEyeEndpoint: endpoint ? endpoint.href : null,
             buildSha: process.env.CANDIDATE_SHA,
           };
           writeFileSync(
             'runtime.sandbox.official.json',
             `${JSON.stringify(officialConfig, null, 2)}\n`,
+            'utf8',
+          );
+          appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `telemetry_enabled=${endpoint ? 'true' : 'false'}\n`,
             'utf8',
           );
           NODE
@@ -95,12 +132,27 @@ jobs:
           CANDIDATE_SHA="$CANDIDATE_SHA" PREVIEW="$preview" node <<'NODE'
           const { readFileSync } = require('node:fs');
           const assert = require('node:assert/strict');
+
           const root = process.env.PREVIEW;
-          const manifest = JSON.parse(readFileSync(`${root}/runtime-manifest.json`, 'utf8'));
-          const report = JSON.parse(readFileSync(`${root}/candidate-report.json`, 'utf8'));
+          const manifest = JSON.parse(
+            readFileSync(`${root}/runtime-manifest.json`, 'utf8'),
+          );
+          const report = JSON.parse(
+            readFileSync(`${root}/candidate-report.json`, 'utf8'),
+          );
+          let expectedEndpoint = null;
+          if (process.env.GAME_EYE_ENDPOINT) {
+            try {
+              expectedEndpoint = new URL(process.env.GAME_EYE_ENDPOINT).href;
+            } catch {
+              throw new Error('Deployed candidate endpoint identity is invalid.');
+            }
+          }
           assert.equal(manifest.mode, 'arkadium-sandbox');
           assert.equal(manifest.arkadiumEnvironment, 'DEV');
-          assert.equal(manifest.gameEyeEndpoint, null);
+          if (manifest.gameEyeEndpoint !== expectedEndpoint) {
+            throw new Error('Deployed candidate endpoint identity is invalid.');
+          }
           assert.equal(manifest.buildSha, process.env.CANDIDATE_SHA);
           assert.equal(report.buildSha, process.env.CANDIDATE_SHA);
           assert.equal(report.sdkVersion, '2.66.2');
@@ -133,7 +185,7 @@ jobs:
 
   sandbox:
     runs-on: ubuntu-latest
-    needs: deploy
+    needs: [prepare, deploy]
     timeout-minutes: 20
     environment:
       name: arkadium-sandbox
@@ -141,7 +193,11 @@ jobs:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       PREVIEW_PATH: sandbox-candidates/${{ inputs.candidate_sha }}
       PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+      TELEMETRY_ENABLED: ${{ needs.prepare.outputs.telemetry_enabled }}
+      GAME_EYE_ENDPOINT: ${{ secrets.GAME_EYE_ENDPOINT }}
       ARKADIUM_SANDBOX_AUTOMATION_JSON: ${{ secrets.ARKADIUM_SANDBOX_AUTOMATION_JSON }}
+      ARK_EYE_CORRELATION_EVIDENCE_URL: ${{ secrets.ARK_EYE_CORRELATION_EVIDENCE_URL }}
+      ARK_EYE_CORRELATION_EVIDENCE_TOKEN: ${{ secrets.ARK_EYE_CORRELATION_EVIDENCE_TOKEN }}
     steps:
       - name: Check out exact candidate evidence tools
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -171,9 +227,25 @@ jobs:
           CANDIDATE_SHA="$CANDIDATE_SHA" node <<'NODE'
           const { readFileSync } = require('node:fs');
           const assert = require('node:assert/strict');
-          const manifest = JSON.parse(readFileSync(process.env.RUNNER_TEMP + '/runtime-manifest.json', 'utf8'));
+
+          const manifest = JSON.parse(
+            readFileSync(
+              process.env.RUNNER_TEMP + '/runtime-manifest.json',
+              'utf8',
+            ),
+          );
+          let expectedEndpoint = null;
+          if (process.env.GAME_EYE_ENDPOINT) {
+            try {
+              expectedEndpoint = new URL(process.env.GAME_EYE_ENDPOINT).href;
+            } catch {
+              throw new Error('Deployed candidate endpoint identity is invalid.');
+            }
+          }
           assert.equal(manifest.mode, 'arkadium-sandbox');
-          assert.equal(manifest.gameEyeEndpoint, null);
+          if (manifest.gameEyeEndpoint !== expectedEndpoint) {
+            throw new Error('Deployed candidate endpoint identity is invalid.');
+          }
           assert.equal(manifest.buildSha, process.env.CANDIDATE_SHA);
           NODE
 
@@ -202,6 +274,140 @@ jobs:
           grep -F '"releaseState": "sandbox-verified"' \
             evidence/arkadium-sandbox/sandbox-verification.json
 
+      - name: Decide protected telemetry correlation
+        id: correlation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ "$TELEMETRY_ENABLED" = true ] \
+            && [ -n "$GAME_EYE_ENDPOINT" ] \
+            && [ -n "$ARK_EYE_CORRELATION_EVIDENCE_URL" ] \
+            && [ -n "$ARK_EYE_CORRELATION_EVIDENCE_TOKEN" ]; then
+            printf 'enabled=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
+            echo 'Protected telemetry correlation inputs are incomplete. Retaining sandbox-verified.'
+          fi
+
+      - name: Retrieve same-session Ark Eye correlation evidence
+        if: steps.correlation.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+
+          const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+          const MAX_EVIDENCE_BYTES = 256 * 1024;
+
+          try {
+            const status = JSON.parse(
+              readFileSync(
+                'evidence/arkadium-sandbox/sandbox-status.json',
+                'utf8',
+              ),
+            );
+            if (!status
+              || typeof status !== 'object'
+              || Array.isArray(status)
+              || status.buildSha !== process.env.CANDIDATE_SHA
+              || status.sdkVersion !== '2.66.2'
+              || typeof status.sessionId !== 'string'
+              || !UUID_V4.test(status.sessionId)) {
+              throw new Error();
+            }
+
+            const source = process.env.ARK_EYE_CORRELATION_EVIDENCE_URL ?? '';
+            if (source.length === 0
+              || source !== source.trim()
+              || source.length > 2048) {
+              throw new Error();
+            }
+            let url;
+            try {
+              url = new URL(source);
+            } catch {
+              throw new Error();
+            }
+            if (url.protocol !== 'https:'
+              || url.username
+              || url.password
+              || url.hash) {
+              throw new Error();
+            }
+            url.searchParams.set('buildSha', status.buildSha);
+            url.searchParams.set('sessionId', status.sessionId);
+            url.searchParams.set('sdkVersion', status.sdkVersion);
+
+            const response = await fetch(url, {
+              headers: {
+                accept: 'application/json',
+                authorization: `Bearer ${process.env.ARK_EYE_CORRELATION_EVIDENCE_TOKEN}`,
+              },
+              redirect: 'error',
+              signal: AbortSignal.timeout(30_000),
+            });
+            const contentType = response.headers.get('content-type') ?? '';
+            if (!response.ok
+              || !/^application\/json(?:\s*;|$)/i.test(contentType)
+              || !response.body) {
+              throw new Error();
+            }
+
+            const reader = response.body.getReader();
+            const chunks = [];
+            let total = 0;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              total += value.byteLength;
+              if (total > MAX_EVIDENCE_BYTES) {
+                await reader.cancel();
+                throw new Error();
+              }
+              chunks.push(value);
+            }
+            if (total < 2) throw new Error();
+            const bytes = new Uint8Array(total);
+            let offset = 0;
+            for (const chunk of chunks) {
+              bytes.set(chunk, offset);
+              offset += chunk.byteLength;
+            }
+            const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+            const value = JSON.parse(text);
+            if (!value || typeof value !== 'object' || Array.isArray(value)) {
+              throw new Error();
+            }
+            writeFileSync(
+              process.env.RUNNER_TEMP + '/ark-eye-correlation.json',
+              text,
+              { encoding: 'utf8', mode: 0o600 },
+            );
+          } catch {
+            console.error('Ark Eye correlation evidence retrieval failed.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Verify protected Sandbox telemetry correlation
+        if: steps.correlation.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          now_ms="$(date +%s%3N)"
+          node scripts/verify-correlated-telemetry-evidence.mjs \
+            --directory evidence/arkadium-sandbox \
+            --ark-eye-evidence "$RUNNER_TEMP/ark-eye-correlation.json" \
+            --expected-build-sha "$CANDIDATE_SHA" \
+            --expected-sdk-version 2.66.2 \
+            --now-ms "$now_ms" \
+            --max-age-ms 900000
+          grep -F '"releaseState": "sandbox-telemetry-verified"' \
+            evidence/arkadium-sandbox/correlated-telemetry-verification.json
+          cp "$RUNNER_TEMP/ark-eye-correlation.json" \
+            evidence/arkadium-sandbox/ark-eye-correlation.json
+
       - name: Upload official Sandbox evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -214,5 +420,7 @@ jobs:
             evidence/arkadium-sandbox/sandbox-console.log
             evidence/arkadium-sandbox/sandbox-page.png
             evidence/arkadium-sandbox/sandbox-verification.json
+            evidence/arkadium-sandbox/ark-eye-correlation.json
+            evidence/arkadium-sandbox/correlated-telemetry-verification.json
           if-no-files-found: warn
           retention-days: 14
