@@ -1,0 +1,50 @@
+name: Verify correlated Sandbox telemetry
+description: Bind verified official Sandbox evidence to one persisted Ark Eye telemetry session.
+
+inputs:
+  sandbox-verification:
+    description: Path to the verified official Sandbox report.
+    required: true
+  sandbox-status:
+    description: Path to the official Sandbox status evidence.
+    required: true
+  sandbox-events:
+    description: Path to the official Sandbox lifecycle evidence.
+    required: true
+  ark-eye-evidence:
+    description: Path to the normalized Ark Eye correlation evidence.
+    required: true
+  expected-build-sha:
+    description: Exact candidate commit represented by both evidence bundles.
+    required: true
+  output:
+    description: Destination for the correlated release-gate report.
+    required: true
+  max-age-ms:
+    description: Maximum accepted age for both evidence bundles.
+    required: false
+    default: '900000'
+
+runs:
+  using: composite
+  steps:
+    - name: Verify exact Sandbox and Ark Eye correlation
+      shell: bash
+      env:
+        SANDBOX_VERIFICATION_PATH: ${{ inputs.sandbox-verification }}
+        SANDBOX_STATUS_PATH: ${{ inputs.sandbox-status }}
+        SANDBOX_EVENTS_PATH: ${{ inputs.sandbox-events }}
+        ARK_EYE_EVIDENCE_PATH: ${{ inputs.ark-eye-evidence }}
+        EXPECTED_BUILD_SHA: ${{ inputs.expected-build-sha }}
+        CORRELATED_OUTPUT_PATH: ${{ inputs.output }}
+        CORRELATED_MAX_AGE_MS: ${{ inputs.max-age-ms }}
+      run: |
+        set -Eeuo pipefail
+        node "$GITHUB_ACTION_PATH/../../../scripts/verify-correlated-telemetry-evidence.mjs" \
+          --sandbox-verification "$SANDBOX_VERIFICATION_PATH" \
+          --sandbox-status "$SANDBOX_STATUS_PATH" \
+          --sandbox-events "$SANDBOX_EVENTS_PATH" \
+          --ark-eye-evidence "$ARK_EYE_EVIDENCE_PATH" \
+          --expected-build-sha "$EXPECTED_BUILD_SHA" \
+          --output "$CORRELATED_OUTPUT_PATH" \
+          --max-age-ms "$CORRELATED_MAX_AGE_MS"
