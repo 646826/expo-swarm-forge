@@ -2,7 +2,7 @@
 
 This checklist separates repository-owned work from publisher-owned approvals. Passing it does not claim acceptance by Arkadium.
 
-**Current release state: `contract-ready`.** The repository does not claim `sandbox-verified` or the optional `sandbox-telemetry-verified` promotion until the protected official workflow succeeds for one exact candidate and its evidence is reviewed.
+**Current release state: `contract-ready`.** The repository does not claim Sandbox verification (`sandbox-verified`) or the optional `sandbox-telemetry-verified` promotion until the protected official workflow succeeds for one exact candidate and its evidence is reviewed.
 
 ## Playable package
 
