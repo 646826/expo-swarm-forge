@@ -465,6 +465,7 @@ function validateArkEye(value, sandbox, options, errors) {
     || !safeInteger(browserCapturedAtMs)
     || browserCapturedAtMs < sandbox.startedAtMs
     || browserCapturedAtMs > sandbox.generatedAtMs
+    || generatedAtMs < sandbox.generatedAtMs
     || generatedAtMs < browserCapturedAtMs) {
     errors.push('Ark Eye correlation timing is invalid.');
   }
