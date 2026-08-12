@@ -16,7 +16,9 @@ test('protected workflow builds an optional exact HTTPS Game Eye candidate', asy
   assert.match(workflow, /endpoint\.protocol !== 'https:'/);
   assert.match(workflow, /gameEyeEndpoint:\s*endpoint \? endpoint\.href : null/);
   assert.match(workflow, /telemetry_enabled=/);
-  assert.match(workflow, /assert\.equal\(manifest\.gameEyeEndpoint, expectedEndpoint\)/);
+  assert.match(workflow, /manifest\.gameEyeEndpoint !== expectedEndpoint/);
+  assert.match(workflow, /Deployed candidate endpoint identity is invalid\./);
+  assert.doesNotMatch(workflow, /assert\.equal\(manifest\.gameEyeEndpoint, expectedEndpoint\)/);
 });
 
 test('protected workflow retrieves only same-session Ark Eye evidence and verifies it', async () => {
